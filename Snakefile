@@ -42,15 +42,6 @@ rule filter:
             --subsample-max-sequences 100 \
             --probabilistic-sampling"
 
-rule filter_focus:
-    input:
-        sequences="data/full_data/sequences.fasta",
-        index="data/full_data/sequence_index.tsv",
-        metadata="data/full_data/metadata.tsv",
-    output:
-        sequences="data/subsampled_data/{build_name}/sequences.fasta",
-        metadata="data/subsampled_data/{build_name}metadata.tsv",
-
 
 
 
