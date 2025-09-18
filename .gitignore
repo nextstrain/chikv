@@ -5,3 +5,6 @@ data/
 results/
 logs/
 benchmarks/
+
+# Snakemake
+.snakemake/
