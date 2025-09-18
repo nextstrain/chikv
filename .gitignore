@@ -8,3 +8,5 @@ benchmarks/
 
 # Snakemake
 .snakemake/
+
+.vscode/

@@ -27,6 +27,8 @@ rule filter:
     output:
         sequences="data/subsampled_data/sequences.fasta",
         metadata="data/subsampled_data/metadata.tsv",
+# params, pull them from config. can be a function, gets wildcard as parameter, look at rsv repo
+
     shell:
         "augur filter \
             --sequences {input.sequences} \
@@ -39,6 +41,18 @@ rule filter:
             --group-by country year month \
             --subsample-max-sequences 100 \
             --probabilistic-sampling"
+
+rule filter_focus:
+    input:
+        sequences="data/full_data/sequences.fasta",
+        index="data/full_data/sequence_index.tsv",
+        metadata="data/full_data/metadata.tsv",
+    output:
+        sequences="data/subsampled_data/{build_name}/sequences.fasta",
+        metadata="data/subsampled_data/{build_name}metadata.tsv",
+
+
+
 
 rule align:
     input: 
