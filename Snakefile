@@ -1,3 +1,12 @@
+sequences_full = "data/full_data/sequences.fasta"
+metadata_full = "data/full_data/metadata.tsv"
+
+
+configfile: "config/config.yaml"
+
+wildcard_constraints:
+    build=r"[^/]+" #constrain build wildcard to not contain slashes, so i dont get AmbiguousRuleException
+
 rule all:
     input:
         "data/subsampled_data/sequences.fasta",
@@ -7,7 +16,16 @@ rule all:
         "results/branch_lengths.json",
         "results/traits.json",
         "results/nt_muts.json",
-        "auspice/chikv.json"
+        "auspice/chikv.json",
+        expand(
+            "data/subsampled_data/country/{build}/metadata.tsv",
+            build=config.get("builds_to_run"),
+        ),
+        expand("data/subsampled_data/country_w_background/{build}/sequences.fasta",
+            build=config.get("builds_to_run")),
+        expand("data/subsampled_data/country_w_background/{build}/metadata.tsv",
+            build=config.get("builds_to_run"))
+
 
 rule index:
     input:
@@ -19,16 +37,15 @@ rule index:
             --sequences {input.sequences} \
             --output {output.index}"
 
+
 rule filter:
     input:
         sequences="data/full_data/sequences.fasta",
         index="data/full_data/sequence_index.tsv",
         metadata="data/full_data/metadata.tsv",
-    output:
+    output: # will serve as background
         sequences="data/subsampled_data/sequences.fasta",
         metadata="data/subsampled_data/metadata.tsv",
-# params, pull them from config. can be a function, gets wildcard as parameter, look at rsv repo
-
     shell:
         "augur filter \
             --sequences {input.sequences} \
@@ -43,14 +60,53 @@ rule filter:
             --probabilistic-sampling"
 
 
+rule filter_country:
+    input:
+        sequences=sequences_full,
+        index="data/full_data/sequence_index.tsv",
+        metadata=metadata_full,
+    output:
+        sequences="data/subsampled_data/country/{build}/sequences.fasta",
+        metadata="data/subsampled_data/country/{build}/metadata.tsv",
+    shell:
+        "augur filter \
+            --sequences {input.sequences} \
+            --sequence-index {input.index} \
+            --metadata {input.metadata} \
+            --metadata-id-columns Accession \
+            --exclude-all \
+            --include-where country={wildcards.build} \
+            --output-sequences {output.sequences} \
+            --output-metadata {output.metadata}"
 
+
+# should i exclude amgigous dates here?
+# should i subsample?
+
+rule merge_samples:
+    input:
+        metadata_country="data/subsampled_data/country/{build}/metadata.tsv",
+        metadata_background="data/subsampled_data/metadata.tsv",
+        sequences_country="data/subsampled_data/country/{build}/sequences.fasta",
+        sequences_background="data/subsampled_data/sequences.fasta",
+    output:
+        sequences="data/subsampled_data/country_w_background/{build}/sequences.fasta",
+        metadata="data/subsampled_data/country_w_background/{build}/metadata.tsv",
+    shell:
+        "augur merge \
+            --metadata country={input.metadata_country} background={input.metadata_background} \
+            --metadata-id-columns strain name \
+            --sequences {input.sequences_country} {input.sequences_background} \
+            --output-metadata {output.metadata} \
+            --source-columns source_{{NAME}} \
+            --output-sequences {output.sequences}"
 
 rule align:
-    input: 
+    input:
         sequences="data/subsampled_data/sequences.fasta",
-        ref_seq="config/chikv_reference.gb"
-    output:
-        alignment="results/aligned.fasta"
+        ref_seq="config/chikv_reference.gb",
+    output: 
+        alignment="results/aligned.fasta",
     shell:
         "augur align \
             --sequences {input.sequences}\
@@ -60,23 +116,24 @@ rule align:
 
 
 rule tree:
-    input: 
-        alignment="results/aligned.fasta"
+    input:
+        alignment="results/aligned.fasta",
     output:
-        tree="results/tree_raw.nwk"
+        tree="results/tree_raw.nwk",
     shell:
         "augur tree \
         --alignment {input.alignment} \
         --output {output.tree}"
 
+
 rule refine:
     input:
         tree="results/tree_raw.nwk",
         alignment="results/aligned.fasta",
-        metadata="data/subsampled_data/metadata.tsv"
+        metadata="data/subsampled_data/metadata.tsv",
     output:
         tree="results/tree.nwk",
-        node_data="results/branch_lengths.json"
+        node_data="results/branch_lengths.json",
     shell:
         "augur refine \
         --tree {input.tree} \
@@ -90,12 +147,13 @@ rule refine:
         --date-inference marginal \
         --clock-filter-iqd 4"
 
+
 rule traits:
     input:
         tree="results/tree.nwk",
-        metadata="data/subsampled_data/metadata.tsv"
+        metadata="data/subsampled_data/metadata.tsv",
     output:
-        node_data="results/traits.json"
+        node_data="results/traits.json",
     shell:
         "augur traits \
         --tree {input.tree} \
@@ -104,12 +162,13 @@ rule traits:
         --columns region country \
         --confidence"
 
+
 rule ancestral:
     input:
         tree="results/tree.nwk",
-        alignment="results/aligned.fasta"
+        alignment="results/aligned.fasta",
     output:
-        node_data="results/nt_muts.json"
+        node_data="results/nt_muts.json",
     shell:
         "augur ancestral \
         --tree {input.tree} \
@@ -117,19 +176,21 @@ rule ancestral:
         --output-node-data {output.node_data} \
         --inference joint"
 
+
 rule translate:
     input:
         tree="results/tree.nwk",
         ancestral_seq="results/nt_muts.json",
-        ref_seq="config/chikv_reference.gb"
+        ref_seq="config/chikv_reference.gb",
     output:
-        node_data="results/aa_muts.json"
+        node_data="results/aa_muts.json",
     shell:
         "augur translate \
         --tree {input.tree} \
         --ancestral-sequences {input.ancestral_seq} \
         --reference-sequence {input.ref_seq} \
         --output-node-data {output.node_data}"
+
 
 rule export:
     input:
@@ -138,6 +199,8 @@ rule export:
         branch_lengths="results/branch_lengths.json",
         nt_muts="results/nt_muts.json",
         aa_muts="results/aa_muts.json",
+    output:
+        auspice="auspice/chikv.json",
     shell:
         "augur export v2 \
         --tree {input.tree} \
@@ -145,4 +208,4 @@ rule export:
         --node-data {input.branch_lengths} \
                     {input.nt_muts} \
                     {input.aa_muts} \
-        --output auspice/chikv.json"
+        --output {output.auspice}"

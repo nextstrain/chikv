@@ -10,3 +10,22 @@ benchmarks/
 .snakemake/
 
 .vscode/
+
+# Snakemake
+.snakemake/
+logs/
+
+# Python
+*.pyc
+.tox/
+.cache/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Icon?
+ehthumbs.db
+Thumbs.db
