@@ -1,3 +1,30 @@
 {
-    "title": "Tutorial Nextstrain build for Zika virus"
+    "title": "Tutorial Nextstrain build for Zika virus",
+    "panels": [
+        "tree",
+        "map",
+        "entropy"
+    ],
+    "colorings": [
+        {
+            "key": "Genotype",
+            "title": "Genotype",
+            "type": "categorical"
+        },
+        {
+            "key": "date",
+            "title": "Date",
+            "type": "continuous"
+        },
+        {
+            "key": "country",
+            "title": "Country",
+            "type": "categorical"
+        },
+        {
+            "key": "Geo_Location",
+            "title": "geo_location",
+            "type": "categorical"
+        }
+    ]
 }
