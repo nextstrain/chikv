@@ -4,8 +4,10 @@ metadata_full = "data/full_data/metadata.tsv"
 
 configfile: "config/config.yaml"
 
+
 wildcard_constraints:
-    build=r"[^/]+" #constrain build wildcard to not contain slashes, so i dont get AmbiguousRuleException
+    build=r"[^/]+",  #constrain build wildcard to not contain slashes, so i dont get AmbiguousRuleException
+
 
 rule all:
     input:
@@ -21,10 +23,14 @@ rule all:
             "data/subsampled_data/country/{build}/metadata.tsv",
             build=config.get("builds_to_run"),
         ),
-        expand("data/subsampled_data/country_w_background/{build}/sequences.fasta",
-            build=config.get("builds_to_run")),
-        expand("data/subsampled_data/country_w_background/{build}/metadata.tsv",
-            build=config.get("builds_to_run"))
+        expand(
+            "data/subsampled_data/country_w_background/{build}/sequences.fasta",
+            build=config.get("builds_to_run"),
+        ),
+        expand(
+            "data/subsampled_data/country_w_background/{build}/metadata.tsv",
+            build=config.get("builds_to_run"),
+        ),
 
 
 rule index:
@@ -43,7 +49,7 @@ rule filter:
         sequences="data/full_data/sequences.fasta",
         index="data/full_data/sequence_index.tsv",
         metadata="data/full_data/metadata.tsv",
-    output: # will serve as background
+    output:  # will serve as background
         sequences="data/subsampled_data/sequences.fasta",
         metadata="data/subsampled_data/metadata.tsv",
     shell:
@@ -83,6 +89,7 @@ rule filter_country:
 # should i exclude amgigous dates here?
 # should i subsample?
 
+
 rule merge_samples:
     input:
         metadata_country="data/subsampled_data/country/{build}/metadata.tsv",
@@ -101,11 +108,12 @@ rule merge_samples:
             --source-columns source_{{NAME}} \
             --output-sequences {output.sequences}"
 
+
 rule align:
     input:
         sequences="data/subsampled_data/sequences.fasta",
         ref_seq="config/chikv_reference.gb",
-    output: 
+    output:
         alignment="results/aligned.fasta",
     shell:
         "augur align \
@@ -199,8 +207,13 @@ rule export:
         branch_lengths="results/branch_lengths.json",
         nt_muts="results/nt_muts.json",
         aa_muts="results/aa_muts.json",
+        lat_longs="config/lat_longs.tsv",
+        auspice_config="config/auspice_config.json",
     output:
         auspice="auspice/chikv.json",
+    params:
+        auspice_config="config/auspice_config.json",
+        geo_resolutions="country",
     shell:
         "augur export v2 \
         --tree {input.tree} \
@@ -208,4 +221,7 @@ rule export:
         --node-data {input.branch_lengths} \
                     {input.nt_muts} \
                     {input.aa_muts} \
+        --geo-resolutions {params.geo_resolutions} \
+        --lat-longs {input.lat_longs} \
+        --auspice-config {input.auspice_config} \
         --output {output.auspice}"
