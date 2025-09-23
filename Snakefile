@@ -33,6 +33,20 @@ rule all:
         ),
 
 
+rule lowercase:
+    input:
+        metadata="data/full_data/metadata_upper.tsv",
+    output:
+        metadata="data/full_data/metadata.tsv",
+    run:
+        import pandas as pd
+
+        df = pd.read_csv(input.metadata, sep="\t")
+        if "country" in df.columns:
+            df["country"] = df["country"].str.lower()
+        df.to_csv(output.metadata, sep="\t", index=False)
+
+
 rule index:
     input:
         sequences="data/full_data/sequences.fasta",
@@ -208,12 +222,12 @@ rule export:
         nt_muts="results/nt_muts.json",
         aa_muts="results/aa_muts.json",
         lat_longs="config/lat_longs.tsv",
-        auspice_config="config/auspice_config.json",
     output:
         auspice="auspice/chikv.json",
     params:
         auspice_config="config/auspice_config.json",
         geo_resolutions="country",
+        colors="config/colors.tsv",
     shell:
         "augur export v2 \
         --tree {input.tree} \
@@ -222,6 +236,7 @@ rule export:
                     {input.nt_muts} \
                     {input.aa_muts} \
         --geo-resolutions {params.geo_resolutions} \
+        --colors {params.colors} \
         --lat-longs {input.lat_longs} \
-        --auspice-config {input.auspice_config} \
+        --auspice-config {params.auspice_config} \
         --output {output.auspice}"
