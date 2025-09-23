@@ -32,6 +32,7 @@ rule all:
             build=config.get("builds_to_run"),
         ),
         "results/colors.tsv",
+        "results/aligned_masked.fasta",
 
 
 """ rule lowercase: # probably not needed anymore
@@ -138,9 +139,22 @@ rule align:
             --fill-gaps"
 
 
-rule tree:
+rule mask:
     input:
         alignment="results/aligned.fasta",
+    output:
+        alignment_masked="results/aligned_masked.fasta",
+    shell:
+        "augur mask \
+        --sequences {input.alignment} \
+        --mask-from-beginning 76 \
+        --mask-from-end 513 \
+        --output {output.alignment_masked}"
+
+
+rule tree:
+    input:
+        alignment="results/aligned_masked.fasta",
     output:
         tree="results/tree_raw.nwk",
     shell:
@@ -152,7 +166,7 @@ rule tree:
 rule refine:
     input:
         tree="results/tree_raw.nwk",
-        alignment="results/aligned.fasta",
+        alignment="results/aligned_masked.fasta",
         metadata="data/subsampled_data/metadata.tsv",
     output:
         tree="results/tree.nwk",
@@ -189,7 +203,7 @@ rule traits:
 rule ancestral:
     input:
         tree="results/tree.nwk",
-        alignment="results/aligned.fasta",
+        alignment="results/aligned_masked.fasta",
     output:
         node_data="results/nt_muts.json",
     shell:
