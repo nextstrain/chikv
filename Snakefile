@@ -31,9 +31,10 @@ rule all:
             "data/subsampled_data/country_w_background/{build}/metadata.tsv",
             build=config.get("builds_to_run"),
         ),
+        "results/colors.tsv",
 
 
-rule lowercase:
+""" rule lowercase: # probably not needed anymore
     input:
         metadata="data/full_data/metadata_upper.tsv",
     output:
@@ -44,7 +45,7 @@ rule lowercase:
         df = pd.read_csv(input.metadata, sep="\t")
         if "country" in df.columns:
             df["country"] = df["country"].str.lower()
-        df.to_csv(output.metadata, sep="\t", index=False)
+        df.to_csv(output.metadata, sep="\t", index=False) """
 
 
 rule index:
@@ -214,6 +215,23 @@ rule translate:
         --output-node-data {output.node_data}"
 
 
+rule colors:
+    input:
+        color_schemes="config/color_schemes.tsv",
+        color_orderings="config/color_orderings.tsv",
+        metadata="data/subsampled_data/metadata.tsv",
+    output:
+        colors="results/colors.tsv",
+    shell:
+        """
+        python scripts/assign-colors.py \
+            --color-schemes {input.color_schemes} \
+            --ordering {input.color_orderings} \
+            --metadata {input.metadata} \
+            --output {output.colors}
+        """
+
+
 rule export:
     input:
         tree="results/tree.nwk",
@@ -222,6 +240,7 @@ rule export:
         nt_muts="results/nt_muts.json",
         aa_muts="results/aa_muts.json",
         lat_longs="config/lat_longs.tsv",
+        colors=rules.colors.output.colors,
     output:
         auspice="auspice/chikv.json",
     params:
@@ -236,7 +255,7 @@ rule export:
                     {input.nt_muts} \
                     {input.aa_muts} \
         --geo-resolutions {params.geo_resolutions} \
-        --colors {params.colors} \
+        --colors {input.colors} \
         --lat-longs {input.lat_longs} \
         --auspice-config {params.auspice_config} \
         --output {output.auspice}"
