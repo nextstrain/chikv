@@ -5,55 +5,51 @@ metadata_full = "data/full_data/metadata.tsv"
 configfile: "config/config.yaml"
 
 
+datadir = "data/subsampled_data"
+
+
+full_data_dir = "data/{source}/full_data/"
+background_data_dir = "data/{source}/subsampled_data/"
+country_data_dir = "data/{source}/subsampled_data/country/{build}/"
+build_data_dir = "data/{source}/subsampled_data/country_w_background/{build}/"
+
+
 wildcard_constraints:
     build=r"[^/]+",  #constrain build wildcard to not contain slashes, so i dont get AmbiguousRuleException
+    source="manual|ingest",
 
 
 rule all:
     input:
-        "data/subsampled_data/sequences.fasta",
-        "data/subsampled_data/metadata.tsv",
-        "results/aligned.fasta",
-        "results/tree.nwk",
-        "results/branch_lengths.json",
-        "results/traits.json",
-        "results/nt_muts.json",
-        "auspice/chikv.json",
+        "data/manual/subsampled_data/sequences.fasta",
+        "data/manual/subsampled_data/metadata.tsv",
+        "results/manual/aligned.fasta",
+        "results/manual/tree.nwk",
+        "results/manual/branch_lengths.json",
+        "results/manual/traits.json",
+        "results/manual/nt_muts.json",
+        "auspice/manual/chikv.json",
         expand(
-            "data/subsampled_data/country/{build}/metadata.tsv",
+            "data/manual/subsampled_data/country/{build}/metadata.tsv",
             build=config.get("builds_to_run"),
         ),
         expand(
-            "data/subsampled_data/country_w_background/{build}/sequences.fasta",
+            "data/manual/subsampled_data/country_w_background/{build}/sequences.fasta",
             build=config.get("builds_to_run"),
         ),
         expand(
-            "data/subsampled_data/country_w_background/{build}/metadata.tsv",
+            "data/manual/subsampled_data/country_w_background/{build}/metadata.tsv",
             build=config.get("builds_to_run"),
         ),
-        "results/colors.tsv",
-        "results/aligned_masked.fasta",
-
-
-""" rule lowercase: # probably not needed anymore
-    input:
-        metadata="data/full_data/metadata_upper.tsv",
-    output:
-        metadata="data/full_data/metadata.tsv",
-    run:
-        import pandas as pd
-
-        df = pd.read_csv(input.metadata, sep="\t")
-        if "country" in df.columns:
-            df["country"] = df["country"].str.lower()
-        df.to_csv(output.metadata, sep="\t", index=False) """
+        "results/manual/colors.tsv",
+        "results/manual/aligned_masked.fasta",
 
 
 rule index:
     input:
-        sequences="data/full_data/sequences.fasta",
+        sequences=full_data_dir + "sequences.fasta",
     output:
-        index="data/full_data/sequence_index.tsv",
+        index=full_data_dir + "sequence_index.tsv",
     shell:
         "augur index \
             --sequences {input.sequences} \
@@ -62,12 +58,12 @@ rule index:
 
 rule filter:
     input:
-        sequences="data/full_data/sequences.fasta",
-        index="data/full_data/sequence_index.tsv",
-        metadata="data/full_data/metadata.tsv",
+        sequences=full_data_dir + "sequences.fasta",
+        index=full_data_dir + "sequence_index.tsv",
+        metadata=full_data_dir + "metadata.tsv",
     output:  # will serve as background
-        sequences="data/subsampled_data/sequences.fasta",
-        metadata="data/subsampled_data/metadata.tsv",
+        sequences=background_data_dir + "sequences.fasta",
+        metadata=background_data_dir + "metadata.tsv",
     shell:
         "augur filter \
             --sequences {input.sequences} \
@@ -84,12 +80,12 @@ rule filter:
 
 rule filter_country:
     input:
-        sequences=sequences_full,
-        index="data/full_data/sequence_index.tsv",
-        metadata=metadata_full,
+        sequences=full_data_dir + "sequences.fasta",
+        index=full_data_dir + "sequence_index.tsv",
+        metadata=full_data_dir + "metadata.tsv",
     output:
-        sequences="data/subsampled_data/country/{build}/sequences.fasta",
-        metadata="data/subsampled_data/country/{build}/metadata.tsv",
+        sequences=country_data_dir + "sequences.fasta",
+        metadata=country_data_dir + "metadata.tsv",
     shell:
         "augur filter \
             --sequences {input.sequences} \
@@ -108,13 +104,13 @@ rule filter_country:
 
 rule merge_samples:
     input:
-        metadata_country="data/subsampled_data/country/{build}/metadata.tsv",
-        metadata_background="data/subsampled_data/metadata.tsv",
-        sequences_country="data/subsampled_data/country/{build}/sequences.fasta",
-        sequences_background="data/subsampled_data/sequences.fasta",
+        metadata_country=country_data_dir + "metadata.tsv",
+        metadata_background=background_data_dir + "metadata.tsv",
+        sequences_country=country_data_dir + "sequences.fasta",
+        sequences_background=background_data_dir + "sequences.fasta",
     output:
-        sequences="data/subsampled_data/country_w_background/{build}/sequences.fasta",
-        metadata="data/subsampled_data/country_w_background/{build}/metadata.tsv",
+        sequences=build_data_dir + "sequences.fasta",
+        metadata=build_data_dir + "metadata.tsv",
     shell:
         "augur merge \
             --metadata country={input.metadata_country} background={input.metadata_background} \
@@ -127,10 +123,10 @@ rule merge_samples:
 
 rule align:
     input:
-        sequences="data/subsampled_data/sequences.fasta",
+        sequences=background_data_dir + "sequences.fasta",
         ref_seq="config/chikv_reference.gb",
     output:
-        alignment="results/aligned.fasta",
+        alignment="results/{source}/aligned.fasta",
     shell:
         "augur align \
             --sequences {input.sequences}\
@@ -141,9 +137,9 @@ rule align:
 
 rule mask:
     input:
-        alignment="results/aligned.fasta",
+        alignment="results/{source}/aligned.fasta",
     output:
-        alignment_masked="results/aligned_masked.fasta",
+        alignment_masked="results/{source}/aligned_masked.fasta",
     shell:
         "augur mask \
         --sequences {input.alignment} \
@@ -154,9 +150,9 @@ rule mask:
 
 rule tree:
     input:
-        alignment="results/aligned_masked.fasta",
+        alignment="results/{source}/aligned_masked.fasta",
     output:
-        tree="results/tree_raw.nwk",
+        tree="results/{source}/tree_raw.nwk",
     shell:
         "augur tree \
         --alignment {input.alignment} \
@@ -165,12 +161,12 @@ rule tree:
 
 rule refine:
     input:
-        tree="results/tree_raw.nwk",
-        alignment="results/aligned_masked.fasta",
-        metadata="data/subsampled_data/metadata.tsv",
+        tree="results/{source}/tree_raw.nwk",
+        alignment="results/{source}/aligned_masked.fasta",
+        metadata=background_data_dir + "metadata.tsv",
     output:
-        tree="results/tree.nwk",
-        node_data="results/branch_lengths.json",
+        tree="results/{source}/tree.nwk",
+        node_data="results/{source}/branch_lengths.json",
     shell:
         "augur refine \
         --tree {input.tree} \
@@ -187,10 +183,10 @@ rule refine:
 
 rule traits:
     input:
-        tree="results/tree.nwk",
-        metadata="data/subsampled_data/metadata.tsv",
+        tree="results/{source}/tree.nwk",
+        metadata=background_data_dir + "metadata.tsv",
     output:
-        node_data="results/traits.json",
+        node_data="results/{source}/traits.json",
     shell:
         "augur traits \
         --tree {input.tree} \
@@ -202,10 +198,10 @@ rule traits:
 
 rule ancestral:
     input:
-        tree="results/tree.nwk",
-        alignment="results/aligned_masked.fasta",
+        tree="results/{source}/tree.nwk",
+        alignment="results/{source}/aligned_masked.fasta",
     output:
-        node_data="results/nt_muts.json",
+        node_data="results/{source}/nt_muts.json",
     shell:
         "augur ancestral \
         --tree {input.tree} \
@@ -216,11 +212,11 @@ rule ancestral:
 
 rule translate:
     input:
-        tree="results/tree.nwk",
-        ancestral_seq="results/nt_muts.json",
+        tree="results/{source}/tree.nwk",
+        ancestral_seq="results/{source}/nt_muts.json",
         ref_seq="config/chikv_reference.gb",
     output:
-        node_data="results/aa_muts.json",
+        node_data="results/{source}/aa_muts.json",
     shell:
         "augur translate \
         --tree {input.tree} \
@@ -233,9 +229,9 @@ rule colors:
     input:
         color_schemes="config/color_schemes.tsv",
         color_orderings="config/color_orderings.tsv",
-        metadata="data/subsampled_data/metadata.tsv",
+        metadata=background_data_dir + "metadata.tsv",
     output:
-        colors="results/colors.tsv",
+        colors="results/{source}/colors.tsv",
     shell:
         """
         python scripts/assign-colors.py \
@@ -248,15 +244,15 @@ rule colors:
 
 rule export:
     input:
-        tree="results/tree.nwk",
-        metadata="data/subsampled_data/metadata.tsv",
-        branch_lengths="results/branch_lengths.json",
-        nt_muts="results/nt_muts.json",
-        aa_muts="results/aa_muts.json",
+        tree="results/{source}/tree.nwk",
+        metadata=background_data_dir + "metadata.tsv",
+        branch_lengths="results/{source}/branch_lengths.json",
+        nt_muts="results/{source}/nt_muts.json",
+        aa_muts="results/{source}/aa_muts.json",
         lat_longs="config/lat_longs.tsv",
         colors=rules.colors.output.colors,
     output:
-        auspice="auspice/chikv.json",
+        auspice="auspice/{source}/chikv.json",
     params:
         auspice_config="config/auspice_config.json",
         geo_resolutions="country",
