@@ -12,6 +12,8 @@ This will produce output files as
 Parameters are expected to be defined in `config.transform`.
 """
 
+# runs from ingest/ directory!
+
 
 rule fetch_general_geolocation_rules:
     output:
@@ -139,4 +141,18 @@ rule extend_metadata:
                                        --id-field accession \
                                        --nextclade {input.nextclade} \
                                        --output {output.metadata}
+        """
+
+
+rule copy_to_data_folder:
+    input:
+        sequences="data/sequences.fasta",
+        metadata="data/extended_metadata.tsv",
+    output:
+        sequences="../data/ingest/full_data/sequences.fasta",
+        metadata="../data/ingest/full_data/metadata.tsv",
+    shell:
+        """
+        cp {input.sequences} {output.sequences}
+        cp {input.metadata} {output.metadata}
         """
