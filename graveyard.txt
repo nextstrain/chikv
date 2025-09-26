@@ -1,0 +1,194 @@
+rule index_ingest:
+    input:
+        sequences="ingest/data/sequences.fasta",
+    output:
+        index="ingest/data/sequence_index.tsv",
+    shell:
+        "augur index \
+            --sequences {input.sequences} \
+            --output {output.index}"
+
+
+rule filter_ingest:
+    input:
+        sequences="ingest/data/sequences.fasta",
+        index="ingest/data/sequence_index.tsv",
+        metadata="ingest/data/metadata.tsv",
+    output:
+        sequences="ingest/data_filtered/sequences.fasta",
+        metadata="ingest/data_filtered/metadata.tsv",
+    shell:
+        "augur filter \
+            --sequences {input.sequences} \
+            --sequence-index {input.index} \
+            --metadata {input.metadata} \
+            --metadata-id-columns accession \
+            --exclude-ambiguous-dates-by year \
+            --group-by country year month \
+            --subsample-max-sequences 500 \
+            --output-sequences {output.sequences} \
+            --output-metadata {output.metadata}"
+
+
+rule align_ingest:
+    input:
+        sequences="ingest/data_filtered/sequences.fasta",
+        ref_seq="config/chikv_reference.gb",
+    output:
+        alignment="results/ingest/aligned.fasta",
+    shell:
+        "augur align \
+        --sequences {input.sequences} \
+        --reference-sequence {input.ref_seq} \
+        --output {output.alignment} \
+        --fill-gaps"
+
+
+rule mask_ingest:
+    input:
+        alignment=rules.align_ingest.output.alignment,
+    output:
+        alignment_masked="results/ingest/aligned_masked.fasta",
+    shell:
+        "augur mask \
+        --sequences {input.alignment} \
+        --mask-from-beginning 76 \
+        --mask-from-end 513 \
+        --output {output.alignment_masked}"
+
+
+rule tree_ingest:
+    input:
+        alignment=rules.mask_ingest.output.alignment_masked,
+    output:
+        tree="results/ingest/tree_raw.nwk",
+    shell:
+        "augur tree \
+        --alignment {input.alignment} \
+        --output {output.tree}"
+
+
+rule refine_ingest:
+    input:
+        tree=rules.tree_ingest.output.tree,
+        alignment=rules.mask_ingest.output.alignment_masked,
+        metadata="ingest/data_filtered/metadata.tsv",
+    output:
+        tree="results/ingest/tree.nwk",
+        node_data="results/ingest/branch_lengths.json",
+    shell:
+        "augur refine \
+        --tree {input.tree} \
+        --alignment {input.alignment} \
+        --metadata {input.metadata} \
+        --output-tree {output.tree} \
+        --output-node-data {output.node_data} \
+        --timetree \
+        --coalescent opt \
+        --date-confidence \
+        --date-inference marginal \
+        --clock-filter-iqd 4"
+
+
+rule traits_ingest:
+    input:
+        tree=rules.refine_ingest.output.tree,
+        metadata="ingest/data_filtered/metadata.tsv",
+    output:
+        node_data="results/ingest/traits.json",
+    shell:
+        "augur traits \
+        --tree {input.tree} \
+        --metadata {input.metadata} \
+        --output-node-data {output.node_data} \
+        --columns region country \
+        --confidence"
+
+
+rule ancestral_ingest:
+    input:
+        tree=rules.refine_ingest.output.tree,
+        alignment=rules.mask_ingest.output.alignment_masked,
+    output:
+        node_data="results/ingest/nt_muts.json",
+    shell:
+        "augur ancestral \
+        --tree {input.tree} \
+        --alignment {input.alignment} \
+        --output-node-data {output.node_data} \
+        --inference joint"
+
+
+rule translate_ingest:
+    input:
+        tree=rules.refine_ingest.output.tree,
+        ancestral_seq=rules.ancestral_ingest.output.node_data,
+        ref_seq="config/chikv_reference.gb",
+    output:
+        node_data="results/ingest/aa_muts.json",
+    shell:
+        "augur translate \
+        --tree {input.tree} \
+        --ancestral-sequences {input.ancestral_seq} \
+        --reference-sequence {input.ref_seq} \
+        --output-node-data {output.node_data}"
+
+
+rule colors_ingest:
+    input:
+        color_schemes="config/color_schemes.tsv",
+        color_orderings="config/color_orderings.tsv",
+        metadata="ingest/data_filtered/metadata.tsv",
+    output:
+        colors="results/ingest/colors.tsv",
+    shell:
+        """
+        python scripts/assign-colors.py \
+            --color-schemes {input.color_schemes} \
+            --ordering {input.color_orderings} \
+            --metadata {input.metadata} \
+            --output {output.colors}
+        """
+
+
+rule export_ingest:
+    input:
+        tree=rules.refine_ingest.output.tree,
+        metadata="ingest/data_filtered/metadata.tsv",
+        branch_lengths=rules.refine_ingest.output.node_data,
+        nt_muts=rules.ancestral_ingest.output.node_data,
+        aa_muts=rules.translate_ingest.output.node_data,
+        lat_longs="config/lat_longs.tsv",
+        colors=rules.colors_ingest.output.colors,
+    output:
+        auspice="auspice/chikv_ingest.json",
+    params:
+        auspice_config="config/auspice_config.json",
+        geo_resolutions="country",
+        colors="config/colors.tsv",
+    shell:
+        "augur export v2 \
+        --tree {input.tree} \
+        --metadata {input.metadata} \
+        --node-data {input.branch_lengths} \
+                    {input.nt_muts} \
+                    {input.aa_muts} \
+        --geo-resolutions {params.geo_resolutions} \
+        --colors {input.colors} \
+        --lat-longs {input.lat_longs} \
+        --auspice-config {params.auspice_config} \
+        --output {output.auspice}"
+
+
+""" rule lowercase: # probably not needed anymore
+    input:
+        metadata="data/full_data/metadata_upper.tsv",
+    output:
+        metadata="data/full_data/metadata.tsv",
+    run:
+        import pandas as pd
+
+        df = pd.read_csv(input.metadata, sep="\t")
+        if "country" in df.columns:
+            df["country"] = df["country"].str.lower()
+        df.to_csv(output.metadata, sep="\t", index=False) """
