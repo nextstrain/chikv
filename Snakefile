@@ -27,8 +27,10 @@ rule all:
         "results/manual/tree.nwk",
         "results/manual/branch_lengths.json",
         "results/manual/traits.json",
+        "results/ingest/traits.json",
         "results/manual/nt_muts.json",
         "auspice/manual/chikv.json",
+        "auspice/ingest/chikv.json",
         expand(
             "data/manual/subsampled_data/country/{build}/metadata.tsv",
             build=config.get("builds_to_run"),
@@ -61,6 +63,7 @@ rule filter:
         sequences=full_data_dir + "sequences.fasta",
         index=full_data_dir + "sequence_index.tsv",
         metadata=full_data_dir + "metadata.tsv",
+        exclude="config/outliers.txt",
     output:  # will serve as background
         sequences=background_data_dir + "sequences.fasta",
         metadata=background_data_dir + "metadata.tsv",
@@ -69,13 +72,16 @@ rule filter:
             --sequences {input.sequences} \
             --sequence-index {input.index} \
             --metadata {input.metadata} \
-            --metadata-id-columns Accession \
+            --metadata-id-columns Accession accession \
             --exclude-ambiguous-dates-by any \
+            --exclude-where qc.overallStatus=bad 'abbr_authors=Badar et al.' \
+            --exclude {input.exclude} \
             --output-sequences {output.sequences} \
             --output-metadata {output.metadata} \
-            --group-by country year month \
-            --subsample-max-sequences 100 \
-            --probabilistic-sampling"
+            --group-by country year \
+            --subsample-max-sequences 200 \
+            --probabilistic-sampling \
+            --subsample-seed 1"
 
 
 rule filter_country:
@@ -172,13 +178,13 @@ rule refine:
         --tree {input.tree} \
         --alignment {input.alignment} \
         --metadata {input.metadata} \
+        --metadata-id-columns accession Accession \
         --output-tree {output.tree} \
         --output-node-data {output.node_data} \
         --timetree \
         --coalescent opt \
         --date-confidence \
-        --date-inference marginal \
-        --clock-filter-iqd 4"
+        --date-inference marginal"
 
 
 rule traits:
@@ -191,6 +197,7 @@ rule traits:
         "augur traits \
         --tree {input.tree} \
         --metadata {input.metadata} \
+        --metadata-id-columns accession Accession \
         --output-node-data {output.node_data} \
         --columns region country \
         --confidence"
@@ -250,7 +257,7 @@ rule export:
         nt_muts="results/{source}/nt_muts.json",
         aa_muts="results/{source}/aa_muts.json",
         lat_longs="config/lat_longs.tsv",
-        colors=rules.colors.output.colors,
+        colors="results/{source}/colors.tsv",
     output:
         auspice="auspice/{source}/chikv.json",
     params:
@@ -261,6 +268,7 @@ rule export:
         "augur export v2 \
         --tree {input.tree} \
         --metadata {input.metadata} \
+        --metadata-id-columns accession Accession \
         --node-data {input.branch_lengths} \
                     {input.nt_muts} \
                     {input.aa_muts} \
