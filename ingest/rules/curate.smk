@@ -117,6 +117,7 @@ rule nextclade:
         sequences=rules.curate.output.sequences,
     output:
         nextclade="data/nextclade.tsv",
+        output_fasta="data/aligment.fasta",
     params:
         output_columns="seqName clade qc.overallScore qc.overallStatus alignmentScore  alignmentStart  alignmentEnd  coverage dynamic",
     threads: 8
@@ -125,6 +126,7 @@ rule nextclade:
         nextclade3 run --dataset-name community/v-gen-lab/chikV/genotypes  -j {threads} \
                           --output-columns-selection {params.output_columns} \
                           --output-tsv {output.nextclade} \
+                          --output-fasta {output.output_fasta} \
                           {input.sequences}
         """
 

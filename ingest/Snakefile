@@ -47,6 +47,7 @@ rule all:
         "data/sequences.ndjson",
         "../data/ingest/full_data/sequences.fasta",
         "../data/ingest/full_data/metadata.tsv",
+        "data/aligment.fasta",
 
 
 include: "rules/fetch_sequences.smk"
