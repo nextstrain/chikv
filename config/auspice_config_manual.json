@@ -7,7 +7,7 @@
     ],
     "colorings": [
         {
-            "key": "Genotype",
+            "key": "gt",
             "title": "Genotype",
             "type": "categorical"
         },
@@ -17,7 +17,7 @@
             "type": "categorical"
         },
         {
-            "key": "date",
+            "key": "num_date",
             "title": "Date",
             "type": "continuous"
         },

@@ -1,0 +1,40 @@
+{
+    "title": "Tutorial Nextstrain build for Chikungunya virus",
+    "panels": [
+        "tree",
+        "map",
+        "entropy"
+    ],
+    "colorings": [
+        {
+            "key": "gt",
+            "title": "Genotype",
+            "type": "categorical"
+        },
+        {
+            "key": "clade",
+            "title": "Clade",
+            "type": "categorical"
+        },
+        {
+            "key": "num_date",
+            "title": "Date",
+            "type": "continuous"
+        },
+        {
+            "key": "country",
+            "title": "Country",
+            "type": "categorical"
+        },
+        {
+            "key": "Geo_Location",
+            "title": "geo_location",
+            "type": "categorical"
+        },
+        {
+            "key": "region",
+            "title": "Region",
+            "type": "categorical"
+        }
+    ]
+}
