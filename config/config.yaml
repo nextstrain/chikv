@@ -1,3 +1,5 @@
 country_builds_to_run: ["Senegal", "China", "Thailand"]
 
 region_builds_to_run: ["Europe"]
+
+sources_to_run: ["manual", "ingest"]

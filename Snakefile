@@ -47,13 +47,13 @@ rule all:
         "results/manual/general/nt_muts.json",
         "results/manual/general/colors.tsv",
         "results/manual/general/aligned_masked.fasta",
+        
         # auspice files
-        "auspice/manual/general/chikv.json",
-        "auspice/manual/China/chikv.json",
-        "auspice/ingest/China/chikv.json",
-        "auspice/manual/Senegal/chikv.json",
-        "auspice/ingest/Senegal/chikv.json",
-        "auspice/ingest/general/chikv.json",
+        expand(
+            "auspice/chikv_{source}_{country_build}.json",
+            source=config.get("sources_to_run"),
+            country_build=config.get("country_builds_to_run")
+        )
 
 
 rule index:
@@ -308,7 +308,7 @@ rule export:
         lat_longs="config/lat_longs.tsv",
         colors="results/{source}/{build}/colors.tsv",
     output:
-        auspice="auspice/{source}/{build}/chikv.json",
+        auspice="auspice/chikv_{source}_{build}.json",
     params:
         auspice_config="config/auspice_config.json",
         geo_resolutions="country",
