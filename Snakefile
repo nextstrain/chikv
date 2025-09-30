@@ -10,13 +10,22 @@ configfile: "config/config.yaml"
 full_data_dir = "data/{source}/full_data/"
 background_data_dir = "data/{source}/subsampled_data/"
 country_data_dir = "data/{source}/subsampled_data/country/{country_build}/"
-build_data_dir = "data/{source}/subsampled_data/country_w_background/{build}/"
+region_data_dir = "data/{source}/subsampled_data/region/{region_build}/"
+country_build_data_dir = "data/{source}/subsampled_data/country_w_background/{build}/"
+region_build_data_dir = "data/{source}/subsampled_data/region_w_background/{build}/"
+
+
+## 
+regions = ["Asia",	"Oceania",	"Africa",	"Europe",	"South America",	"North America"]
+
 
 
 ## wildcards
 wildcard_constraints:
     country_build=r"[^/]+",  # country to filter for
-    build=r"[^/]+",  # can be country or region
+    region_build=r"[^/]+",  # region to filter for
+    build=r"[^/]+",  # can be a country or a region
+    build_type="country|region",
     source="manual|ingest",
     #constrain country_build wildcard to not contain slashes, so i dont get AmbiguousRuleException
 
@@ -47,13 +56,19 @@ rule all:
         "results/manual/general/nt_muts.json",
         "results/manual/general/colors.tsv",
         "results/manual/general/aligned_masked.fasta",
+        "data/ingest/subsampled_data/region_w_background/Europe/metadata_merged.tsv",
         
         # auspice files
         expand(
             "auspice/chikv_{source}_{country_build}.json",
             source=config.get("sources_to_run"),
             country_build=config.get("country_builds_to_run")
+        ),
+        expand(
+            "auspice/chikv_ingest_{region_build}.json",
+            region_build=config.get("region_builds_to_run")
         )
+
 
 
 rule index:
@@ -117,7 +132,26 @@ rule filter_country:
 # should i subsample?
 
 
-rule merge_samples:
+rule filter_region:
+    input:
+        sequences=full_data_dir + "sequences.fasta",
+        index=full_data_dir + "sequence_index.tsv",
+        metadata=full_data_dir + "metadata.tsv",
+    output:
+        sequences=region_data_dir + "sequences.fasta",
+        metadata=region_data_dir + "metadata.tsv",
+    shell:
+        "augur filter \
+            --sequences {input.sequences} \
+            --sequence-index {input.index} \
+            --metadata {input.metadata} \
+            --metadata-id-columns Accession accession \
+            --exclude-all \
+            --include-where region={wildcards.region_build}\
+            --output-sequences {output.sequences} \
+            --output-metadata {output.metadata}"
+
+rule merge_samples_country:
     input:
         metadata_country=country_data_dir + "metadata.tsv",
         metadata_background=background_data_dir + "metadata.tsv",
@@ -138,16 +172,37 @@ rule merge_samples:
             --output-sequences {output.sequences}"
 
 
+rule merge_samples_region:
+    input:
+        metadata_region=region_data_dir + "metadata.tsv",
+        metadata_background=background_data_dir + "metadata.tsv",
+        sequences_region=region_data_dir + "sequences.fasta",
+        sequences_background=background_data_dir + "sequences.fasta",
+    output:
+        sequences="data/{source}/subsampled_data/region_w_background/{region_build}/"
+        + "sequences_merged.fasta",
+        metadata="data/{source}/subsampled_data/region_w_background/{region_build}/"
+        + "metadata_merged.tsv",
+    shell:
+        "augur merge \
+            --metadata region={input.metadata_region} background={input.metadata_background} \
+            --metadata-id-columns accession Accession\
+            --sequences {input.sequences_region} {input.sequences_background} \
+            --output-metadata {output.metadata} \
+            --source-columns source_{{NAME}} \
+            --output-sequences {output.sequences}"
+
+
 rule filter_out_short_reads:
     input:
-        sequences="data/{source}/subsampled_data/country_w_background/{country_build}/"
+        sequences="data/{source}/subsampled_data/{build_type}_w_background/{build}/"
         + "sequences_merged.fasta",
-        metadata="data/{source}/subsampled_data/country_w_background/{country_build}/"
+        metadata="data/{source}/subsampled_data/{build_type}_w_background/{build}/"
         + "metadata_merged.tsv",
     output:
-        sequences="data/{source}/subsampled_data/country_w_background/{country_build}/"
+        sequences="data/{source}/subsampled_data/{build_type}_w_background/{build}/"
         + "sequences.fasta",
-        metadata="data/{source}/subsampled_data/country_w_background/{country_build}/"
+        metadata="data/{source}/subsampled_data/{build_type}_w_background/{build}/"
         + "metadata.tsv",
     shell:
         "augur filter \
@@ -161,18 +216,24 @@ rule filter_out_short_reads:
 
 
 def get_sequences(wildcards):
+    build_type = "region" if wildcards.build in regions else "country"
     if wildcards.build == "general":
         seq_path = background_data_dir + "sequences.fasta"
+    elif wildcards.build in regions:
+        seq_path = region_build_data_dir + "sequences.fasta"
     else:
-        seq_path = build_data_dir + "sequences.fasta"
+        seq_path = country_build_data_dir + "sequences.fasta"
     return seq_path
 
 
 def get_metadata(wildcards):
+
     if wildcards.build == "general":
         met_path = background_data_dir + "metadata.tsv"
+    elif wildcards.build in regions:
+        met_path = region_build_data_dir + "metadata.tsv"
     else:
-        met_path = build_data_dir + "metadata.tsv"
+        met_path = country_build_data_dir + "metadata.tsv"
     return met_path
 
 
@@ -309,8 +370,9 @@ rule export:
         colors="results/{source}/{build}/colors.tsv",
     output:
         auspice="auspice/chikv_{source}_{build}.json",
+        
     params:
-        auspice_config="config/auspice_config.json",
+        auspice_config="config/auspice_config_{source}.json",
         geo_resolutions="country",
         colors="config/colors.tsv",
     shell:
