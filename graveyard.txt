@@ -192,3 +192,35 @@ rule export_ingest:
         if "country" in df.columns:
             df["country"] = df["country"].str.lower()
         df.to_csv(output.metadata, sep="\t", index=False) """
+
+
+
+
+if "region" in pd.read_table(str(input.metadata)).columns.tolist():
+
+
+    run:
+        if (
+            wildcards.country_build in regions
+            and "region" in pd.read_table(str(input.metadata)).columns.tolist()
+        ):
+            print("with region")
+            shell(
+                "augur filter \
+                            --sequences {input.sequences} \
+                            --sequence-index {input.index} \
+                            --metadata {input.metadata} \
+                            --metadata-id-columns Accession accession \
+                            --exclude-all \
+                            --include-where region={wildcards.country_build} \
+                            --output-sequences {output.sequences} \
+                            --output-metadata {output.metadata}"
+            )
+        elif (
+            wildcards.country_build in regions
+            and "region" not in pd.read_table(str(input.metadata)).columns.tolist()
+        ):
+            print("can't make region country_build, region not in metadata")
+        else:
+            print("without region")
+            shell(
