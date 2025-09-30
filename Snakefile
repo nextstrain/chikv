@@ -1,3 +1,5 @@
+import pandas as pd
+
 sequences_full = "data/full_data/sequences.fasta"
 metadata_full = "data/full_data/metadata.tsv"
 
@@ -5,17 +7,15 @@ metadata_full = "data/full_data/metadata.tsv"
 configfile: "config/config.yaml"
 
 
-datadir = "data/subsampled_data"
-
-
 full_data_dir = "data/{source}/full_data/"
 background_data_dir = "data/{source}/subsampled_data/"
-country_data_dir = "data/{source}/subsampled_data/country/{build}/"
+country_data_dir = "data/{source}/subsampled_data/country/{country_build}/"
 build_data_dir = "data/{source}/subsampled_data/country_w_background/{build}/"
 
 
 wildcard_constraints:
-    build=r"[^/]+",  #constrain build wildcard to not contain slashes, so i dont get AmbiguousRuleException
+    country_build=r"[^/]+",
+    build=r"[^/]+",  #constrain country_build wildcard to not contain slashes, so i dont get AmbiguousRuleException
     source="manual|ingest",
 
 
@@ -23,28 +23,32 @@ rule all:
     input:
         "data/manual/subsampled_data/sequences.fasta",
         "data/manual/subsampled_data/metadata.tsv",
-        "results/manual/aligned.fasta",
-        "results/manual/tree.nwk",
-        "results/manual/branch_lengths.json",
-        "results/manual/traits.json",
-        "results/ingest/traits.json",
-        "results/manual/nt_muts.json",
-        "auspice/manual/chikv.json",
-        "auspice/ingest/chikv.json",
+        "results/manual/general/aligned.fasta",
+        "results/manual/general/tree.nwk",
+        "results/manual/general/branch_lengths.json",
+        "results/manual/general/traits.json",
+        "results/ingest/general/traits.json",
+        "results/manual/general/nt_muts.json",
+        "auspice/manual/general/chikv.json",
+        "auspice/manual/China/chikv.json",
+        "auspice/ingest/China/chikv.json",
+        "auspice/manual/Senegal/chikv.json",
+        "auspice/ingest/Senegal/chikv.json",
+        "auspice/ingest/general/chikv.json",
         expand(
-            "data/manual/subsampled_data/country/{build}/metadata.tsv",
-            build=config.get("builds_to_run"),
+            "data/manual/subsampled_data/country/{country_build}/metadata.tsv",
+            country_build=config.get("country_builds_to_run"),
         ),
         expand(
-            "data/manual/subsampled_data/country_w_background/{build}/sequences.fasta",
-            build=config.get("builds_to_run"),
+            "data/manual/subsampled_data/country_w_background/{country_build}/sequences.fasta",
+            country_build=config.get("country_builds_to_run"),
         ),
         expand(
-            "data/manual/subsampled_data/country_w_background/{build}/metadata.tsv",
-            build=config.get("builds_to_run"),
+            "data/manual/subsampled_data/country_w_background/{country_build}/metadata.tsv",
+            country_build=config.get("country_builds_to_run"),
         ),
-        "results/manual/colors.tsv",
-        "results/manual/aligned_masked.fasta",
+        "results/manual/general/colors.tsv",
+        "results/manual/general/aligned_masked.fasta",
 
 
 rule index:
@@ -79,7 +83,7 @@ rule filter:
             --output-sequences {output.sequences} \
             --output-metadata {output.metadata} \
             --group-by country year \
-            --subsample-max-sequences 200 \
+            --subsample-max-sequences 100 \
             --probabilistic-sampling \
             --subsample-seed 1"
 
@@ -97,9 +101,9 @@ rule filter_country:
             --sequences {input.sequences} \
             --sequence-index {input.index} \
             --metadata {input.metadata} \
-            --metadata-id-columns Accession \
+            --metadata-id-columns Accession accession \
             --exclude-all \
-            --include-where country={wildcards.build} \
+            --include-where country={wildcards.country_build}\
             --output-sequences {output.sequences} \
             --output-metadata {output.metadata}"
 
@@ -115,24 +119,64 @@ rule merge_samples:
         sequences_country=country_data_dir + "sequences.fasta",
         sequences_background=background_data_dir + "sequences.fasta",
     output:
-        sequences=build_data_dir + "sequences.fasta",
-        metadata=build_data_dir + "metadata.tsv",
+        sequences="data/{source}/subsampled_data/country_w_background/{country_build}/"
+        + "sequences_merged.fasta",
+        metadata="data/{source}/subsampled_data/country_w_background/{country_build}/"
+        + "metadata_merged.tsv",
     shell:
         "augur merge \
             --metadata country={input.metadata_country} background={input.metadata_background} \
-            --metadata-id-columns strain name \
+            --metadata-id-columns accession Accession\
             --sequences {input.sequences_country} {input.sequences_background} \
             --output-metadata {output.metadata} \
             --source-columns source_{{NAME}} \
             --output-sequences {output.sequences}"
 
 
+rule filter_out_short_reads:
+    input:
+        sequences="data/{source}/subsampled_data/country_w_background/{country_build}/"
+        + "sequences_merged.fasta",
+        metadata="data/{source}/subsampled_data/country_w_background/{country_build}/"
+        + "metadata_merged.tsv",
+    output:
+        sequences="data/{source}/subsampled_data/country_w_background/{country_build}/"
+        + "sequences.fasta",
+        metadata="data/{source}/subsampled_data/country_w_background/{country_build}/"
+        + "metadata.tsv",
+    shell:
+        "augur filter \
+            --sequences {input.sequences} \
+            --metadata {input.metadata} \
+            --metadata-id-columns Accession accession \
+            --min-length 1000 \
+            --exclude-ambiguous-dates-by year \
+            --output-sequences {output.sequences} \
+            --output-metadata {output.metadata}"
+
+
+def get_sequences(wildcards):
+    if wildcards.build == "general":
+        seq_path = background_data_dir + "sequences.fasta"
+    else:
+        seq_path = build_data_dir + "sequences.fasta"
+    return seq_path
+
+
+def get_metadata(wildcards):
+    if wildcards.build == "general":
+        met_path = background_data_dir + "metadata.tsv"
+    else:
+        met_path = build_data_dir + "metadata.tsv"
+    return met_path
+
+
 rule align:
     input:
-        sequences=background_data_dir + "sequences.fasta",
+        sequences=get_sequences,
         ref_seq="config/chikv_reference.gb",
     output:
-        alignment="results/{source}/aligned.fasta",
+        alignment="results/{source}/{build}/aligned.fasta",
     shell:
         "augur align \
             --sequences {input.sequences}\
@@ -143,9 +187,9 @@ rule align:
 
 rule mask:
     input:
-        alignment="results/{source}/aligned.fasta",
+        alignment="results/{source}/{build}/aligned.fasta",
     output:
-        alignment_masked="results/{source}/aligned_masked.fasta",
+        alignment_masked="results/{source}/{build}/aligned_masked.fasta",
     shell:
         "augur mask \
         --sequences {input.alignment} \
@@ -156,9 +200,9 @@ rule mask:
 
 rule tree:
     input:
-        alignment="results/{source}/aligned_masked.fasta",
+        alignment="results/{source}/{build}/aligned_masked.fasta",
     output:
-        tree="results/{source}/tree_raw.nwk",
+        tree="results/{source}/{build}/tree_raw.nwk",
     shell:
         "augur tree \
         --alignment {input.alignment} \
@@ -167,12 +211,12 @@ rule tree:
 
 rule refine:
     input:
-        tree="results/{source}/tree_raw.nwk",
-        alignment="results/{source}/aligned_masked.fasta",
-        metadata=background_data_dir + "metadata.tsv",
+        tree="results/{source}/{build}/tree_raw.nwk",
+        alignment="results/{source}/{build}/aligned_masked.fasta",
+        metadata=get_metadata,
     output:
-        tree="results/{source}/tree.nwk",
-        node_data="results/{source}/branch_lengths.json",
+        tree="results/{source}/{build}/tree.nwk",
+        node_data="results/{source}/{build}/branch_lengths.json",
     shell:
         "augur refine \
         --tree {input.tree} \
@@ -189,10 +233,10 @@ rule refine:
 
 rule traits:
     input:
-        tree="results/{source}/tree.nwk",
-        metadata=background_data_dir + "metadata.tsv",
+        tree="results/{source}/{build}/tree.nwk",
+        metadata=get_metadata,
     output:
-        node_data="results/{source}/traits.json",
+        node_data="results/{source}/{build}/traits.json",
     shell:
         "augur traits \
         --tree {input.tree} \
@@ -205,10 +249,10 @@ rule traits:
 
 rule ancestral:
     input:
-        tree="results/{source}/tree.nwk",
-        alignment="results/{source}/aligned_masked.fasta",
+        tree="results/{source}/{build}/tree.nwk",
+        alignment="results/{source}/{build}/aligned_masked.fasta",
     output:
-        node_data="results/{source}/nt_muts.json",
+        node_data="results/{source}/{build}/nt_muts.json",
     shell:
         "augur ancestral \
         --tree {input.tree} \
@@ -219,11 +263,11 @@ rule ancestral:
 
 rule translate:
     input:
-        tree="results/{source}/tree.nwk",
-        ancestral_seq="results/{source}/nt_muts.json",
+        tree="results/{source}/{build}/tree.nwk",
+        ancestral_seq="results/{source}/{build}/nt_muts.json",
         ref_seq="config/chikv_reference.gb",
     output:
-        node_data="results/{source}/aa_muts.json",
+        node_data="results/{source}/{build}/aa_muts.json",
     shell:
         "augur translate \
         --tree {input.tree} \
@@ -236,9 +280,9 @@ rule colors:
     input:
         color_schemes="config/color_schemes.tsv",
         color_orderings="config/color_orderings.tsv",
-        metadata=background_data_dir + "metadata.tsv",
+        metadata=get_metadata,
     output:
-        colors="results/{source}/colors.tsv",
+        colors="results/{source}/{build}/colors.tsv",
     shell:
         """
         python scripts/assign-colors.py \
@@ -251,15 +295,15 @@ rule colors:
 
 rule export:
     input:
-        tree="results/{source}/tree.nwk",
-        metadata=background_data_dir + "metadata.tsv",
-        branch_lengths="results/{source}/branch_lengths.json",
-        nt_muts="results/{source}/nt_muts.json",
-        aa_muts="results/{source}/aa_muts.json",
+        tree="results/{source}/{build}/tree.nwk",
+        metadata=get_metadata,
+        branch_lengths="results/{source}/{build}/branch_lengths.json",
+        nt_muts="results/{source}/{build}/nt_muts.json",
+        aa_muts="results/{source}/{build}/aa_muts.json",
         lat_longs="config/lat_longs.tsv",
-        colors="results/{source}/colors.tsv",
+        colors="results/{source}/{build}/colors.tsv",
     output:
-        auspice="auspice/{source}/chikv.json",
+        auspice="auspice/{source}/{build}/chikv.json",
     params:
         auspice_config="config/auspice_config.json",
         geo_resolutions="country",
