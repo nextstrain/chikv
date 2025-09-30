@@ -1,40 +1,31 @@
+## imports
 import pandas as pd
 
-sequences_full = "data/full_data/sequences.fasta"
-metadata_full = "data/full_data/metadata.tsv"
 
-
+## config
 configfile: "config/config.yaml"
 
 
+## important directories
 full_data_dir = "data/{source}/full_data/"
 background_data_dir = "data/{source}/subsampled_data/"
 country_data_dir = "data/{source}/subsampled_data/country/{country_build}/"
 build_data_dir = "data/{source}/subsampled_data/country_w_background/{build}/"
 
 
+## wildcards
 wildcard_constraints:
-    country_build=r"[^/]+",
-    build=r"[^/]+",  #constrain country_build wildcard to not contain slashes, so i dont get AmbiguousRuleException
+    country_build=r"[^/]+",  # country to filter for
+    build=r"[^/]+",  # can be country or region
     source="manual|ingest",
+    #constrain country_build wildcard to not contain slashes, so i dont get AmbiguousRuleException
 
 
 rule all:
     input:
+        # data
         "data/manual/subsampled_data/sequences.fasta",
         "data/manual/subsampled_data/metadata.tsv",
-        "results/manual/general/aligned.fasta",
-        "results/manual/general/tree.nwk",
-        "results/manual/general/branch_lengths.json",
-        "results/manual/general/traits.json",
-        "results/ingest/general/traits.json",
-        "results/manual/general/nt_muts.json",
-        "auspice/manual/general/chikv.json",
-        "auspice/manual/China/chikv.json",
-        "auspice/ingest/China/chikv.json",
-        "auspice/manual/Senegal/chikv.json",
-        "auspice/ingest/Senegal/chikv.json",
-        "auspice/ingest/general/chikv.json",
         expand(
             "data/manual/subsampled_data/country/{country_build}/metadata.tsv",
             country_build=config.get("country_builds_to_run"),
@@ -47,8 +38,22 @@ rule all:
             "data/manual/subsampled_data/country_w_background/{country_build}/metadata.tsv",
             country_build=config.get("country_builds_to_run"),
         ),
+        # intermediate results
+        "results/manual/general/aligned.fasta",
+        "results/manual/general/tree.nwk",
+        "results/manual/general/branch_lengths.json",
+        "results/manual/general/traits.json",
+        "results/ingest/general/traits.json",
+        "results/manual/general/nt_muts.json",
         "results/manual/general/colors.tsv",
         "results/manual/general/aligned_masked.fasta",
+        # auspice files
+        "auspice/manual/general/chikv.json",
+        "auspice/manual/China/chikv.json",
+        "auspice/ingest/China/chikv.json",
+        "auspice/manual/Senegal/chikv.json",
+        "auspice/ingest/Senegal/chikv.json",
+        "auspice/ingest/general/chikv.json",
 
 
 rule index:
