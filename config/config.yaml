@@ -1,1 +1,3 @@
-builds_to_run: ["Senegal", "China", "Thailand"]
+country_builds_to_run: ["Senegal", "China", "Thailand"]
+
+region_builds_to_run: ["Europe"]
