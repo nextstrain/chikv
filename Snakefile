@@ -48,15 +48,6 @@ rule all:
             country_build=config.get("country_builds_to_run"),
         ),
         # intermediate results
-        "results/manual/general/aligned.fasta",
-        "results/manual/general/tree.nwk",
-        "results/manual/general/branch_lengths.json",
-        "results/manual/general/traits.json",
-        "results/ingest/general/traits.json",
-        "results/manual/general/nt_muts.json",
-        "results/manual/general/colors.tsv",
-        "results/manual/general/aligned_masked.fasta",
-        "data/ingest/subsampled_data/region_w_background/Europe/metadata_merged.tsv",
         
         # auspice files
         expand(
@@ -67,7 +58,10 @@ rule all:
         expand(
             "auspice/chikv_ingest_{region_build}.json",
             region_build=config.get("region_builds_to_run")
-        )
+        ),
+        "auspice/chikv_manual_general.json",
+        "auspice/chikv_ingest_general.json"
+
 
 
 
@@ -294,7 +288,8 @@ rule refine:
         --timetree \
         --coalescent opt \
         --date-confidence \
-        --date-inference marginal"
+        --date-inference marginal \
+        --clock-rate 5e-4"
 
 
 rule traits:
@@ -331,7 +326,7 @@ rule translate:
     input:
         tree="results/{source}/{build}/tree.nwk",
         ancestral_seq="results/{source}/{build}/nt_muts.json",
-        ref_seq="config/chikv_reference.gb",
+        ref_seq="config/chikv_reference_adjusted.gb",
     output:
         node_data="results/{source}/{build}/aa_muts.json",
     shell:
