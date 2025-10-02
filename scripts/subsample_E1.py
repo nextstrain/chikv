@@ -5,7 +5,7 @@ alignment = AlignIO.read("results/ingest/general/aligned.fasta", "fasta") # repl
 gene_start = 9993
 gene_end = 11310
 
-slice = slice(gene_start, gene_end)
+slice = slice(gene_start, gene_end) # check that we get the right region
 
 seq_to_keep = []
 
