@@ -1,5 +1,5 @@
-country_builds_to_run: ["Senegal", "China", "Thailand"]
+country_builds_to_run: ["Senegal"]
 
-region_builds_to_run: ["Europe"]
+region_builds_to_run: []
 
-sources_to_run: ["manual", "ingest"]
+sources_to_run: ["ingest"]
