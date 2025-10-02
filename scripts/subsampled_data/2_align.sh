@@ -1,7 +1,6 @@
-cd chikungunya
 
 augur align \
-  --sequences data/subsampled_data/sequences.fasta \
+  --sequences data/manual/subsampled_data/10/sequences.fasta \
   --reference-sequence config/chikv_reference.gb \
-  --output results/aligned.fasta \
+  --output results/10/aligned.fasta \
   --fill-gaps
