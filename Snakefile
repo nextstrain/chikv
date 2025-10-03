@@ -48,6 +48,7 @@ rule all:
             country_build=config.get("country_builds_to_run"),
         ),
         # intermediate results
+        "data/ingest/subsampled/E1/sequences.fasta",
         
         # auspice files
         expand(
@@ -383,3 +384,27 @@ rule export:
         --lat-longs {input.lat_longs} \
         --auspice-config {params.auspice_config} \
         --output {output.auspice}"
+
+
+rule align_all:
+    input:
+        sequences="data/{source}/full_data/sequences.fasta",
+        ref_seq="config/chikv_reference.gb",
+    output:
+        alignment="data/{source}/full_data/aligned.fasta",
+    shell:
+        "augur align \
+            --sequences {input.sequences} \
+            --reference-name NC_004162 \
+            --output {output.alignment} \
+            --nthreads auto \
+            --fill-gaps"    
+
+
+rule subsample_E1:
+    input:
+        alignment="data/{source}/full_data/aligned.fasta"
+    output:
+        sequences="data/{source}/subsampled/E1/sequences.fasta"
+    shell:
+        "python scripts/subsample_E1.py --alignment {input.alignment} --output {output.sequences}"
