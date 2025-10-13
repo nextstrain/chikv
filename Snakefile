@@ -15,9 +15,8 @@ country_build_data_dir = "data/subsampled_data/country_w_background/{build}/"
 region_build_data_dir = "data/subsampled_data/region_w_background/{build}/"
 
 
-## 
-regions = ["Asia",	"Oceania",	"Africa",	"Europe",	"South America",	"North America"]
-
+##
+regions = ["Asia", "Oceania", "Africa", "Europe", "South America", "North America"]
 
 
 ## wildcards
@@ -32,19 +31,22 @@ wildcard_constraints:
 rule all:
     input:
         # data
+        "data/subsampled_data/E1/sequences.fasta",
+        "data/subsampled_data/E1/metadata.tsv",
         # intermediate results
+        "data/subsampled_data/E1/sequences_segment.fasta",
         # auspice files
         expand(
             "auspice/chikv_{country_build}.json",
-            country_build=config.get("country_builds_to_run")
+            country_build=config.get("country_builds_to_run"),
         ),
         expand(
             "auspice/chikv_{region_build}.json",
-            region_build=config.get("region_builds_to_run")
+            region_build=config.get("region_builds_to_run"),
         ),
+        "auspice/chikv_E1.json",
+        "auspice/chikv_E1_segment.json",
         "auspice/chikv_general.json",
-
-
 
 
 rule index:
@@ -127,6 +129,7 @@ rule filter_region:
             --output-sequences {output.sequences} \
             --output-metadata {output.metadata}"
 
+
 rule merge_samples_country:
     input:
         metadata_country=country_data_dir + "metadata.tsv",
@@ -193,6 +196,10 @@ rule filter_out_short_reads:
 
 def get_sequences(wildcards):
     build_type = "region" if wildcards.build in regions else "country"
+    if wildcards.build == "E1":
+        return "data/subsampled_data/E1/sequences.fasta"
+    if wildcards.build == "E1_segment":
+        return "data/subsampled_data/E1/sequences_segment.fasta"
     if wildcards.build == "general":
         seq_path = background_data_dir + "sequences.fasta"
     elif wildcards.build in regions:
@@ -203,7 +210,10 @@ def get_sequences(wildcards):
 
 
 def get_metadata(wildcards):
-
+    if wildcards.build == "E1":
+        return "data/subsampled_data/E1/metadata.tsv"
+    if wildcards.build == "E1_segment":
+        return "data/subsampled_data/E1/metadata_segment.tsv"
     if wildcards.build == "general":
         met_path = background_data_dir + "metadata.tsv"
     elif wildcards.build in regions:
@@ -211,6 +221,13 @@ def get_metadata(wildcards):
     else:
         met_path = country_build_data_dir + "metadata.tsv"
     return met_path
+
+
+def get_ref(wildcards):
+    if wildcards.build == "E1_segment":
+        return "config/chikv_reference_E1.gb"
+    else:
+        return "config/chikv_reference_adjusted.gb"
 
 
 rule align:
@@ -224,7 +241,8 @@ rule align:
             --sequences {input.sequences}\
             --reference-sequence {input.ref_seq}\
             --output {output.alignment}\
-            --fill-gaps"
+            --fill-gaps \
+            --nthreads auto"
 
 
 rule mask:
@@ -232,6 +250,8 @@ rule mask:
         alignment="results/{build}/aligned.fasta",
     output:
         alignment_masked="results/{build}/aligned_masked.fasta",
+    wildcard_constraints:
+        build="(?!E1$)[^/]+",
     shell:
         "augur mask \
         --sequences {input.alignment} \
@@ -308,7 +328,7 @@ rule translate:
     input:
         tree="results/{build}/tree.nwk",
         ancestral_seq="results/{build}/nt_muts.json",
-        ref_seq="config/chikv_reference_adjusted.gb",
+        ref_seq=get_ref,
     output:
         node_data="results/{build}/aa_muts.json",
     shell:
@@ -347,7 +367,6 @@ rule export:
         colors="results/{build}/colors.tsv",
     output:
         auspice="auspice/chikv_{build}.json",
-        
     params:
         auspice_config="config/auspice_config_ingest.json",
         geo_resolutions="country",
@@ -367,25 +386,109 @@ rule export:
         --output {output.auspice}"
 
 
-rule align_all:
+rule remove_ref:
     input:
         sequences="data/full_data/sequences.fasta",
+        metadata="data/full_data/metadata.tsv",
+        index="data/full_data/sequence_index.tsv",
+    output:
+        sequences="data/full_data/sequences_wo_ref.fasta",
+        metadata="data/full_data/metadata_wo_ref.tsv",
+    shell:
+        "augur filter \
+            --sequences {input.sequences} \
+            --sequence-index {input.index} \
+            --metadata {input.metadata} \
+            --metadata-id-columns Accession accession \
+            --exclude config/ref_name.txt \
+            --output-sequences {output.sequences} \
+            --output-metadata {output.metadata}"
+
+
+rule align_all:
+    input:
+        sequences="data/full_data/sequences_wo_ref.fasta",
         ref_seq="config/chikv_reference.gb",
     output:
         alignment="data/full_data/aligned.fasta",
     shell:
         "augur align \
             --sequences {input.sequences} \
-            --reference-name NC_004162 \
+            --reference-sequence {input.ref_seq} \
             --output {output.alignment} \
             --nthreads auto \
-            --fill-gaps"    
+            --fill-gaps"
+
+
+rule get_E1:
+    input:
+        alignment="data/full_data/aligned.fasta",
+    output:
+        sequences="data/subsampled_data/E1/sequences_raw.fasta",
+        segment="data/subsampled_data/E1/segment.fasta",
+    shell:
+        "python scripts/subsample_E1.py --alignment {input.alignment} --output {output.sequences} -s {output.segment}"
 
 
 rule subsample_E1:
     input:
-        alignment="data/full_data/aligned.fasta"
+        metadata="data/full_data/metadata.tsv",
+        sequences="data/subsampled_data/E1/sequences_raw.fasta",
     output:
-        sequences="data/subsampled/E1/sequences.fasta"
+        metadata="data/subsampled_data/E1/metadata.tsv",
+        sequences="data/subsampled_data/E1/sequences.fasta",
     shell:
-        "python scripts/subsample_E1.py --alignment {input.alignment} --output {output.sequences}"
+        "augur filter \
+            --metadata {input.metadata} \
+            --sequences {input.sequences} \
+            --metadata-id-columns Accession accession \
+            --group-by country year \
+            --subsample-max-sequences 100 \
+            --probabilistic-sampling \
+            --subsample-seed 1 \
+            --output-metadata {output.metadata} \
+            --output-sequences {output.sequences} \
+            --output-log data/subsampled_data/E1/filter_log.tsv"
+
+
+rule subsample_E1_segment:
+    input:
+        metadata="data/full_data/metadata.tsv",
+        sequences="data/subsampled_data/E1/segment.fasta",
+    output:
+        metadata="data/subsampled_data/E1/metadata_segment.tsv",
+        sequences="data/subsampled_data/E1/sequences_segment.fasta",
+    shell:
+        "augur filter \
+            --metadata {input.metadata} \
+            --sequences {input.sequences} \
+            --metadata-id-columns Accession accession \
+            --group-by country year \
+            --subsample-max-sequences 100 \
+            --probabilistic-sampling \
+            --subsample-seed 1 \
+            --output-metadata {output.metadata} \
+            --output-sequences {output.sequences} \
+            --output-log data/subsampled_data/E1/filter_log.tsv"
+
+
+rule mask_E1:
+    input:
+        alignment="results/E1/aligned.fasta",
+    output:
+        alignment_masked="results/E1/aligned_masked.fasta",
+    shell:
+        "augur mask \
+        --sequences {input.alignment} \
+        --mask-from-beginning 9993 \
+        --mask-from-end 513 \
+        --output {output.alignment_masked}"
+
+
+rule get_masked_segment:
+    input:
+        sequences="data/subsampled_data/E1/sequences_segment.fasta",
+    output:
+        alignment_masked="results/E1_segment/aligned_masked.fasta",
+    shell:
+        "cp {input.sequences} {output.alignment_masked}"
