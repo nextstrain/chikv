@@ -27,3 +27,20 @@ for rec in s.features:
 SeqIO.write(s, "config/chikv_reference_adjusted.gb", "genbank")
 
 # SeqIO.write(s, "config/chikv_reference_adjusted.gff", "gff")
+
+e1_feature = SeqFeature(SimpleLocation(9993, 11310), type="CDS", qualifiers={"locus_tag": "E1"})
+
+e1_segment = s[9993:11310]
+
+src = SeqFeature(
+    SimpleLocation(0, len(e1_segment)),
+    type="source",
+    qualifiers={
+        "organism": "Chikungunya virus",
+        "mol_type": "genomic RNA",
+    },
+)
+
+e1_segment.features = [src, SeqFeature(SimpleLocation(0, len(e1_segment)), type="CDS", qualifiers={"locus_tag": "E1"})]
+
+SeqIO.write(e1_segment, "config/chikv_reference_E1.gb", "genbank")

@@ -1,0 +1,38 @@
+LOCUS       NC_004162               1317 bp    ss-RNA           UNK 01-JAN-1980
+DEFINITION  Chikungunya virus, complete genome.
+ACCESSION   NC_004162
+VERSION     NC_004162.2
+KEYWORDS    .
+SOURCE      .
+  ORGANISM  .
+            .
+FEATURES             Location/Qualifiers
+     source          1..1317
+                     /organism="Chikungunya virus"
+                     /mol_type="genomic RNA"
+     CDS             1..1317
+                     /locus_tag="E1"
+ORIGIN
+        1 tacgaacacg taacagtgat cccgaacacg gtgggagtac cgtataagac tctagtcaac
+       61 agaccgggct acagccccat ggtactggag atggagctac tgtcagtcac tttggagcca
+      121 acgctatcgc ttgattacat cacgtgcgaa tacaaaaccg tcatcccgtc tccgtacgtg
+      181 aaatgctgcg gtacagcaga gtgcaaggac aaaaacctac ctgactacag ctgtaaggtc
+      241 ttcaccggcg tctacccatt tatgtggggc ggcgcctact gcttctgcga cgctgaaaac
+      301 acgcaattga gcgaagcaca tgtggagaag tccgaatcat gcaaaacaga atttgcatca
+      361 gcatacaggg ctcataccgc atccgcatca gctaagctcc gcgtccttta ccaaggaaat
+      421 aacatcactg taactgccta tgcaaacggc gaccatgccg tcacagttaa ggacgccaaa
+      481 ttcattgtgg ggccaatgtc ttcagcctgg acaccttttg acaacaaaat cgtggtgtac
+      541 aaaggtgacg tttacaacat ggactacccg ccctttggcg caggaagacc aggacaattt
+      601 ggcgatatcc aaagtcgcac gcctgagagc aaagacgtct atgctaacac acaactggta
+      661 ctgcagagac cggctgcggg tacggtacac gtgccatact ctcaggcacc atctggcttt
+      721 aagtattggt taaaagaacg aggggcgtcg ctacagcaca cagcaccatt tggctgccaa
+      781 atagcaacaa acccggtaag agcgatgaac tgcgccgtag ggaacatgcc catctccatc
+      841 gacataccgg atgcggcctt cactagggtc gtcgacgcgc cctctttaac ggacatgtca
+      901 tgcgaggtac cagcctgcac ccattcctca gactttgggg gcgtcgccat tattaaatat
+      961 gcagtcagca agaaaggcaa gtgtgcggtg cattcgatga ccaacgccgt cactatccgg
+     1021 gaagctgaga tagaagttga agggaattct cagctgcaaa tctctttctc gacggccttg
+     1081 gccagcgccg aattccgcgt acaagtctgt tctacacaag tacactgtgc agccgagtgc
+     1141 caccctccga aggaccacat agtcaactac ccggcgtcac ataccaccct cggggtccag
+     1201 gacatttccg ctacggcgat gtcatgggtg cagaagatca cgggaggtgt gggactggtt
+     1261 gtcgctgttg cagcactgat tctaatcgtg gtgctatgcg tgtcgttcag caggcac
+//
