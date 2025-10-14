@@ -2,7 +2,7 @@
 This part of the workflow handles transforming the data into standardized
 formats and expects input file
 
-    sequences_ndjson = "data/sequences.ndjson"
+    sequences_ndjson = "data/ncbi.ndjson"
 
 This will produce output files as
 
@@ -40,7 +40,7 @@ rule concat_geolocation_rules:
 
 rule curate:
     input:
-        sequences_ndjson="data/sequences.ndjson",
+        sequences_ndjson="data/ncbi.ndjson",
         all_geolocation_rules="data/all-geolocation-rules.tsv",
         annotations=config["curate"]["annotations"],
     output:
