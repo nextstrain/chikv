@@ -31,10 +31,7 @@ wildcard_constraints:
 rule all:
     input:
         # data
-        "data/subsampled_data/E1/sequences.fasta",
-        "data/subsampled_data/E1/metadata.tsv",
         # intermediate results
-        "data/subsampled_data/E1/sequences_segment.fasta",
         # auspice files
         expand(
             "auspice/chikv_{country_build}.json",
@@ -45,7 +42,6 @@ rule all:
             region_build=config.get("region_builds_to_run"),
         ),
         "auspice/chikv_E1.json",
-        "auspice/chikv_E1_segment.json",
         "auspice/chikv_general.json",
 
 
@@ -197,8 +193,6 @@ rule filter_out_short_reads:
 def get_sequences(wildcards):
     build_type = "region" if wildcards.build in regions else "country"
     if wildcards.build == "E1":
-        return "data/subsampled_data/E1/sequences.fasta"
-    if wildcards.build == "E1_segment":
         return "data/subsampled_data/E1/sequences_segment.fasta"
     if wildcards.build == "general":
         seq_path = background_data_dir + "sequences.fasta"
@@ -211,8 +205,6 @@ def get_sequences(wildcards):
 
 def get_metadata(wildcards):
     if wildcards.build == "E1":
-        return "data/subsampled_data/E1/metadata.tsv"
-    if wildcards.build == "E1_segment":
         return "data/subsampled_data/E1/metadata_segment.tsv"
     if wildcards.build == "general":
         met_path = background_data_dir + "metadata.tsv"
@@ -224,10 +216,18 @@ def get_metadata(wildcards):
 
 
 def get_ref(wildcards):
-    if wildcards.build == "E1_segment":
+    if wildcards.build == "E1":
         return "config/chikv_reference_E1.gb"
     else:
         return "config/chikv_reference_adjusted.gb"
+
+
+def get_alignment_for_trees(wildcards): 
+    if wildcards.build == "E1": # we don't need to do any masking cause it's just the E1 gene anyway
+        return "data/subsampled_data/E1/sequences_segment.fasta"
+    else:
+        return f"results/{wildcards.build}/aligned_masked.fasta"
+
 
 
 rule align:
@@ -262,7 +262,7 @@ rule mask:
 
 rule tree:
     input:
-        alignment="results/{build}/aligned_masked.fasta",
+        alignment=get_alignment_for_trees,
     output:
         tree="results/{build}/tree_raw.nwk",
     shell:
@@ -274,7 +274,7 @@ rule tree:
 rule refine:
     input:
         tree="results/{build}/tree_raw.nwk",
-        alignment="results/{build}/aligned_masked.fasta",
+        alignment=get_alignment_for_trees,
         metadata=get_metadata,
     output:
         tree="results/{build}/tree.nwk",
@@ -313,7 +313,7 @@ rule traits:
 rule ancestral:
     input:
         tree="results/{build}/tree.nwk",
-        alignment="results/{build}/aligned_masked.fasta",
+        alignment=get_alignment_for_trees,
     output:
         node_data="results/{build}/nt_muts.json",
     shell:
@@ -424,31 +424,11 @@ rule get_E1:
     input:
         alignment="data/full_data/aligned.fasta",
     output:
-        sequences="data/subsampled_data/E1/sequences_raw.fasta",
-        segment="data/subsampled_data/E1/segment.fasta",
+        sequences="data/subsampled_data/E1/sequences_raw.fasta", # full genome, only sequences with at least 80% of E1 covered
+        segment="data/subsampled_data/E1/segment.fasta", # same sequences, but only the E1 segment
     shell:
         "python scripts/subsample_E1.py --alignment {input.alignment} --output {output.sequences} -s {output.segment}"
 
-
-rule subsample_E1:
-    input:
-        metadata="data/full_data/metadata.tsv",
-        sequences="data/subsampled_data/E1/sequences_raw.fasta",
-    output:
-        metadata="data/subsampled_data/E1/metadata.tsv",
-        sequences="data/subsampled_data/E1/sequences.fasta",
-    shell:
-        "augur filter \
-            --metadata {input.metadata} \
-            --sequences {input.sequences} \
-            --metadata-id-columns Accession accession \
-            --group-by country year \
-            --subsample-max-sequences 100 \
-            --probabilistic-sampling \
-            --subsample-seed 1 \
-            --output-metadata {output.metadata} \
-            --output-sequences {output.sequences} \
-            --output-log data/subsampled_data/E1/filter_log.tsv"
 
 
 rule subsample_E1_segment:
@@ -472,23 +452,4 @@ rule subsample_E1_segment:
             --output-log data/subsampled_data/E1/filter_log.tsv"
 
 
-rule mask_E1:
-    input:
-        alignment="results/E1/aligned.fasta",
-    output:
-        alignment_masked="results/E1/aligned_masked.fasta",
-    shell:
-        "augur mask \
-        --sequences {input.alignment} \
-        --mask-from-beginning 9993 \
-        --mask-from-end 513 \
-        --output {output.alignment_masked}"
 
-
-rule get_masked_segment:
-    input:
-        sequences="data/subsampled_data/E1/sequences_segment.fasta",
-    output:
-        alignment_masked="results/E1_segment/aligned_masked.fasta",
-    shell:
-        "cp {input.sequences} {output.alignment_masked}"
