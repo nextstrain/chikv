@@ -27,6 +27,7 @@ for rec in alignment:
     if coverage > 0.8:
         seq_to_keep.append(rec)
 
+
 print(f"writing {len(seq_to_keep)} sequences to fasta file")
 SeqIO.write(seq_to_keep, args.output, "fasta")
 
@@ -37,6 +38,7 @@ for rec in seq_to_keep:
     sliced_rec.id = rec.id
     sliced_rec.description = f"{rec.description} [segment {gene_start}-{gene_end}]"
     sliced_records.append(sliced_rec)
+
 
 print(f"Writing {len(sliced_records)} sliced sequences to {args.segment_output}")
 SeqIO.write(sliced_records, args.segment_output, "fasta")
