@@ -224,3 +224,38 @@ if "region" in pd.read_table(str(input.metadata)).columns.tolist():
         else:
             print("without region")
             shell(
+
+
+
+rule subsample_E1:
+    input:
+        metadata="data/full_data/metadata.tsv",
+        sequences="data/subsampled_data/E1/sequences_raw.fasta",
+    output:
+        metadata="data/subsampled_data/E1/metadata.tsv",
+        sequences="data/subsampled_data/E1/sequences.fasta",
+    shell:
+        "augur filter \
+            --metadata {input.metadata} \
+            --sequences {input.sequences} \
+            --metadata-id-columns Accession accession \
+            --group-by country year \
+            --subsample-max-sequences 100 \
+            --probabilistic-sampling \
+            --subsample-seed 1 \
+            --output-metadata {output.metadata} \
+            --output-sequences {output.sequences} \
+            --output-log data/subsampled_data/E1/filter_log.tsv"
+        
+
+rule mask_E1:
+    input:
+        alignment="results/E1/aligned.fasta",
+    output:
+        alignment_masked="results/E1/aligned_masked.fasta",
+    shell:
+        "augur mask \
+        --sequences {input.alignment} \
+        --mask-from-beginning 9993 \
+        --mask-from-end 513 \
+        --output {output.alignment_masked}"
