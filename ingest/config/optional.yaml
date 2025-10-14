@@ -1,0 +1,23 @@
+# Optional configs used by Nextstrain team
+# Params for uploads
+# AWS S3 Bucket with prefix
+s3_dst: 's3://nextstrain-data/files/workflows/hmpv'
+upload:
+  # Upload params for AWS S3
+  s3:
+    # Files to upload to S3 that are in the `data` directory
+    files_to_upload: [
+      'ncbi.ndjson',
+      'extended_metadata.tsv',
+      'sequences.fasta'
+    ]
+    # Remote file names for the files to upload, must be in the same order as local files above
+    remote_file_names: [
+      'ncbi.ndjson.xz',
+      'metadata.tsv.gz',
+      'sequences.fasta.xz'
+    ]
+    cloudfront_domain: 'data.nextstrain.org'
+
+# Toggle for triggering builds
+trigger_rebuild: True
