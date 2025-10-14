@@ -1,7 +1,7 @@
 # Optional configs used by Nextstrain team
 # Params for uploads
 # AWS S3 Bucket with prefix
-s3_dst: 's3://nextstrain-data/files/workflows/hmpv'
+s3_dst: 's3://nextstrain-data/files/workflows/chikv'
 upload:
   # Upload params for AWS S3
   s3:
