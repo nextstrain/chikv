@@ -9,17 +9,19 @@ Produces output files as `data/upload/{upload_target_name}/{file_to_upload}-to-{
 Currently only supports uploads to AWS S3, but additional upload rules can
 be easily added as long as they follow the output pattern described above.
 """
+
 import os
+
 
 rule upload_to_s3:
     input:
-        file_to_upload = "data/{file_to_upload}"
+        file_to_upload="data/{file_to_upload}",
     output:
-        touch("data/upload/s3/{file_to_upload}-to-{remote_file_name}.done")
+        touch("data/upload/s3/{file_to_upload}-to-{remote_file_name}.done"),
     params:
-        s3_dst = config["s3_dst"],
-        cloudfront_domain = config["upload"].get("s3", {}).get("cloudfront_domain", "")
+        s3_dst=config["s3_dst"],
+        cloudfront_domain=config["upload"].get("s3", {}).get("cloudfront_domain", ""),
     shell:
         """
-        ./vendored/upload-to-s3 --quiet {input:q} {params.s3_dst:q}/{wildcards.remote_file_name:q} {params.cloudfront_domain}
+        ./vendored/scripts/upload-to-s3 --quiet {input:q} {params.s3_dst:q}/{wildcards.remote_file_name:q} {params.cloudfront_domain}
         """
