@@ -1,0 +1,85 @@
+name: Fetch and ingest
+
+on:
+  workflow_dispatch: # !!! change this back later
+    # Note times are in UTC, which is 1 or 2 hours behind CET depending on daylight savings.
+    #
+    # Note the actual runs might be late.
+    # Numerous people were confused, about that, including me:
+    #  - https://github.community/t/scheduled-action-running-consistently-late/138025/11
+    #  - https://github.com/github/docs/issues/3059
+    #
+    # Note, '*' is a special character in YAML, so you have to quote this string.
+    #
+    # Docs:
+    #  - https://docs.github.com/en/actions/learn-github-actions/events-that-trigger-workflows#schedule
+    #
+    # Tool that deciphers this particular format of crontab string:
+    #  - https://crontab.guru/
+    #
+    # Runs at 4pm UTC (12pm EDT) since curation by NCBI happens on the East Coast.
+  #  - cron:  '0 16 * * 2'
+
+  repository_dispatch:
+    types:
+      - fetch-and-ingest
+
+  # Manually triggered using GitHub's UI
+  workflow_dispatch:
+    inputs:
+      trial_name:
+        description: 'Short name for a trial run. WARNING: without this we will overwrite files in s3://nextstrain-data/files/workflows/rsv'
+
+jobs:
+  set_config_overrides:
+    runs-on: ubuntu-latest
+    steps:
+      - id: s3_dst
+        run: |
+          S3_DST=s3://nextstrain-data/files/workflows/rsv
+
+          if [[ -n "$TRIAL_NAME" ]]; then
+            S3_DST+=/trial/"$TRIAL_NAME"
+          fi
+
+          echo "s3_dst=$S3_DST" >> "$GITHUB_OUTPUT"
+        env:
+          TRIAL_NAME: ${{ inputs.trial_name }}
+      - id: trigger_rebuild
+        run: |
+          TRIGGER_REBUILD=true
+
+          if [[ -n "$TRIAL_NAME" ]]; then
+            TRIGGER_REBUILD=false
+          fi
+
+          echo "trigger_rebuild=$TRIGGER_REBUILD" >> "$GITHUB_OUTPUT"
+    outputs:
+      s3_dst: ${{ steps.s3_dst.outputs.s3_dst }}
+      trigger_rebuild: ${{ steps.trigger_rebuild.outputs.trigger_rebuild }}
+
+  fetch-and-ingest:
+    needs: [set_config_overrides]
+    permissions:
+      id-token: write
+    uses: nextstrain/.github/.github/workflows/pathogen-repo-build.yaml@master
+    secrets: inherit
+    with:
+      runtime: aws-batch
+      run: |
+        nextstrain build \
+          --aws-batch \
+          --detach \
+          --no-download \
+          --cpus 8 \
+          --memory 32gib \
+          --env PAT_GITHUB_DISPATCH="$GH_TOKEN_NEXTSTRAIN_BOT_WORKFLOW_DISPATCH" \
+          --env S3_DST \
+          --env TRIGGER_REBUILD \
+          ingest \
+            --configfiles config/config.yaml config/optional.yaml \
+            --config s3_dst="$S3_DST" trigger_rebuild="$TRIGGER_REBUILD" \
+            --printshellcmds
+      env: |
+        S3_DST: ${{ needs.set_config_overrides.outputs.s3_dst }}
+        TRIGGER_REBUILD: ${{ needs.set_config_overrides.outputs.trigger_rebuild }}
