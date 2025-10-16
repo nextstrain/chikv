@@ -30,6 +30,11 @@ on:
       trial_name:
         description: 'Short name for a trial run. WARNING: without this we will overwrite files in s3://nextstrain-data/files/workflows/rsv'
 
+  # to test this workflow:
+  push:
+    branches:
+      - 'try-github-actions'
+
 jobs:
   set_config_overrides:
     runs-on: ubuntu-latest
