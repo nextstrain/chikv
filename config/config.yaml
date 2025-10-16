@@ -1,5 +1,12 @@
+
+strain_id_field: "accession"
+
+filter:
+  group_by: "year country"
+
 country_builds_to_run: ["Senegal"]
 
 region_builds_to_run: []
 
 sources_to_run: ["ingest"]
+
