@@ -1,7 +1,7 @@
 name: Fetch and ingest
 
 on:
-  workflow_dispatch: # !!! change this back later
+  schedule: # !!! change this back later
     # Note times are in UTC, which is 1 or 2 hours behind CET depending on daylight savings.
     #
     # Note the actual runs might be late.
@@ -18,7 +18,7 @@ on:
     #  - https://crontab.guru/
     #
     # Runs at 4pm UTC (12pm EDT) since curation by NCBI happens on the East Coast.
-  #  - cron:  '0 16 * * 2'
+   - cron:  '0 16 * * 2'
 
   repository_dispatch:
     types:
