@@ -151,8 +151,8 @@ rule copy_to_data_folder:
         sequences="data/sequences.fasta",
         metadata="data/extended_metadata.tsv",
     output:
-        sequences="../data/ingest/full_data/sequences.fasta",
-        metadata="../data/ingest/full_data/metadata.tsv",
+        sequences="../data/full_data/sequences.fasta",
+        metadata="../data/full_data/metadata.tsv",
     shell:
         """
         cp {input.sequences} {output.sequences}
