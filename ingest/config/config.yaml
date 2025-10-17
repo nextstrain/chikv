@@ -41,7 +41,7 @@ curate:
   abbr_authors_field: 'abbr_authors'
   # General geolocation rules to apply to geolocation fields
   geolocation_rules_url: 'https://raw.githubusercontent.com/nextstrain/ncov-ingest/master/source-data/gisaid_geoLocationRules.tsv'
-  # Local geolocation rules that are only applicable to rsv data
+  # Local geolocation rules
   # Local rules can overwrite the general geolocation rules provided above
   local_geolocation_rules: 'source-data/geolocation-rules.tsv'
   # User annotations file
