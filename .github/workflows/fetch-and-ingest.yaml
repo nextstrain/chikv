@@ -36,7 +36,7 @@ jobs:
     steps:
       - id: s3_dst
         run: |
-          S3_DST=s3://nextstrain-data/files/workflows/rsv
+          S3_DST=s3://nextstrain-data/files/workflows/chikv
 
           if [[ -n "$TRIAL_NAME" ]]; then
             S3_DST+=/trial/"$TRIAL_NAME"
