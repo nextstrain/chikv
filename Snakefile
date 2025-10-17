@@ -61,7 +61,7 @@ rule filter:
         sequences=full_data_dir + "sequences.fasta",
         index=full_data_dir + "sequence_index.tsv",
         metadata=full_data_dir + "metadata.tsv",
-        exclude="config/outliers.txt",
+        exclude="config/outliers.txt", # accessions of any samples we want to exclude
     output:  # will serve as background
         sequences=background_data_dir + "sequences.fasta",
         metadata=background_data_dir + "metadata.tsv",
@@ -368,7 +368,7 @@ rule export:
     output:
         auspice="auspice/chikv_{build}.json",
     params:
-        auspice_config="config/auspice_config_ingest.json",
+        auspice_config="config/auspice_config.json",
         geo_resolutions="country",
         colors="config/colors.tsv",
     shell:
@@ -452,4 +452,6 @@ rule subsample_E1_segment:
             --output-log data/subsampled_data/E1/filter_log.tsv"
 
 
-
+rule clean:
+    shell:
+        "rm -rf results auspice"
