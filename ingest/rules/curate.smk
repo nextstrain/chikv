@@ -119,7 +119,7 @@ rule nextclade:
         nextclade="data/nextclade.tsv",
         output_fasta="data/aligment.fasta",
     params:
-        output_columns="seqName clade qc.overallScore qc.overallStatus alignmentScore  alignmentStart  alignmentEnd  coverage dynamic",
+        output_columns="seqName clade qc.overallScore qc.overallStatus alignmentScore  alignmentStart  alignmentEnd  coverage dynamic cdsCoverage",
     threads: 8
     shell:
         """
