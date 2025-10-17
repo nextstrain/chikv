@@ -57,3 +57,8 @@ include: "rules/curate.smk"
 if "s3_dst" in config:
 
     include: "rules/upload.smk"
+
+
+rule clean:
+    shell:
+        "rm -rf data logs"
