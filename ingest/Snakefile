@@ -44,7 +44,7 @@ def _get_all_targets(wildcards):
 rule all:
     input:
         _get_all_targets,
-        "data/sequences.ndjson",
+        "data/ncbi.ndjson",
         "../data/ingest/full_data/sequences.fasta",
         "../data/ingest/full_data/metadata.tsv",
         "data/aligment.fasta",
