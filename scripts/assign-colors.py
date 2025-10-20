@@ -21,7 +21,6 @@ if __name__ == '__main__':
     with open(args.ordering) as f:
         for line in f.readlines():
             array = line.lstrip().rstrip().split("\t")
-            print(array, len(array))
             if len(array) == 2:
                 name = array[0]
                 trait = array[1]
@@ -39,9 +38,7 @@ if __name__ == '__main__':
     if args.metadata:
         metadata = pd.read_csv(args.metadata, delimiter='\t')
         for name, trait in assignment.items():
-            print(name, name in metadata)
             if name in metadata:
-                print(metadata[name])
                 subset_present = [x for x in assignment[name] if x in metadata[name].unique()]
                 assignment[name] = subset_present
             if name in metadata and 'focal' in metadata:
@@ -61,7 +58,6 @@ if __name__ == '__main__':
 
     with open(args.output, 'w') as f:
         for trait_name, trait_array in assignment.items():
-            print(trait_name, trait_array)
             if len(trait_array)==0:
                 print(f"No traits found for {trait_name}")
                 continue

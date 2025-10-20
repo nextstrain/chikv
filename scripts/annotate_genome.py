@@ -19,8 +19,6 @@ s.features.append(SeqFeature(SimpleLocation(9810, 9993), type="CDS", qualifiers=
 s.features.append(SeqFeature(SimpleLocation(9993, 11310), type="CDS", qualifiers={"locus_tag": "E1"}))
 
 
-for rec in s.features:
-    print(rec, "\n")
 
 # s.features[4].qualifiers["translation"][0].find("WS")
 
