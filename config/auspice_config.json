@@ -27,11 +27,6 @@
             "type": "categorical"
         },
         {
-            "key": "Geo_Location",
-            "title": "geo_location",
-            "type": "categorical"
-        },
-        {
             "key": "region",
             "title": "Region",
             "type": "categorical"
