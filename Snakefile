@@ -34,10 +34,8 @@ rule all:
         "data/subsampled_data/E1_snake/metadata.tsv",
         "data/subsampled_data/E1/sequences_segment.fasta",
 
-        "data/download_test/metadata.tsv.gz",
-        "data/download_test/sequences.fasta.xz",
-        "data/download_test/metadata.tsv",
-        "data/download_test/sequences.fasta",
+        "data/full_data/metadata.tsv",
+        "data/full_data/sequences.fasta",
         # intermediate results
         "results/E1_snake/aligned.fasta",
         # auspice files
@@ -641,8 +639,8 @@ rule clean:
 rule download:
     message: "downloading sequences and metadata from data.nextstrain.org"
     output:
-        metadata =  "data/download_test/metadata.tsv.gz",
-        sequences = "data/download_test/sequences.fasta.xz"
+        metadata =  "data/full_data/metadata.tsv.gz",
+        sequences = "data/full_data/sequences.fasta.xz"
     params:
         metadata_url = "http://data.nextstrain.org/files/workflows/chikv/metadata.tsv.gz",
         sequence_url = "http://data.nextstrain.org/files/workflows/chikv/sequences.fasta.xz"
