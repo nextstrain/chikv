@@ -1,5 +1,5 @@
 ## imports
-import pandas as pd
+import pandas as pd # not sure if this is ever used
 
 
 ## config
@@ -8,25 +8,25 @@ configfile: "config/config.yaml"
 
 ## important directories
 full_data_dir = "data/full_data/"
-background_data_dir = "data/subsampled_data/"
-country_data_dir = "data/subsampled_data/country/{country_build}/"
-region_data_dir = "data/subsampled_data/region/{region_build}/"
-country_build_data_dir = "data/subsampled_data/country_w_background/{build}/"
-region_build_data_dir = "data/subsampled_data/region_w_background/{build}/"
+background_data_dir = "data/subsampled_data/" # random, balanced subsample from the full data
+country_data_dir = "data/subsampled_data/country/{country_build}/" # data filtered for just the country
+region_data_dir = "data/subsampled_data/region/{region_build}/" # data filtered for just the region
+country_build_data_dir = "data/subsampled_data/country_w_background/{build}/" # country + background data
+region_build_data_dir = "data/subsampled_data/region_w_background/{build}/" # region + background data
 
 
 ##
-regions = ["Asia", "Oceania", "Africa", "Europe", "South America", "North America"]
+regions = ["Asia", "Oceania", "Africa", "Europe", "South America", "North America"] # to know whether we are building a country or data build
 
 
 ## wildcards
 wildcard_constraints:
+    #constrain build wildcards to not contain slashes, so i dont get AmbiguousRuleException
     country_build=r"[^/]+",  # country to filter for
     region_build=r"[^/]+",  # region to filter for
     build=r"[^/]+",  # can be a country or a region
     build_type="country|region",
-    #constrain country_build wildcard to not contain slashes, so i dont get AmbiguousRuleException
-
+    
 
 rule all:
     input:
@@ -41,11 +41,17 @@ rule all:
             "auspice/chikv_{region_build}.json",
             region_build=config.get("region_builds_to_run"),
         ),
-        "auspice/chikv_E1.json",
-        "auspice/chikv_general.json",
+        #"auspice/chikv_E1.json",
+        "auspice/chikv_general.json", # general build from background data
 
+
+# === filtering and subsampling ===
 
 rule index:
+    message:
+        """
+        Creating index of full dataset
+        """
     input:
         sequences=full_data_dir + "sequences.fasta",
     output:
@@ -57,6 +63,11 @@ rule index:
 
 
 rule filter:
+    """
+    Creates the global 'background' dataset by performing quality control and
+    probabilistic subsampling on the full dataset.
+    """
+    message: "Creating balanced background dataset"
     input:
         sequences=full_data_dir + "sequences.fasta",
         index=full_data_dir + "sequence_index.tsv",
@@ -72,7 +83,7 @@ rule filter:
             --metadata {input.metadata} \
             --metadata-id-columns Accession accession \
             --exclude-ambiguous-dates-by any \
-            --exclude-where qc.overallStatus=bad 'abbr_authors=Badar et al.' \
+            --exclude-where qc.overallStatus=bad \
             --exclude {input.exclude} \
             --output-sequences {output.sequences} \
             --output-metadata {output.metadata} \
@@ -83,6 +94,8 @@ rule filter:
 
 
 rule filter_country:
+    """Extracts all sequences for a single country to create a 'focal' dataset."""
+    message: "Extracting sequences for: {wildcards.country_build}"
     input:
         sequences=full_data_dir + "sequences.fasta",
         index=full_data_dir + "sequence_index.tsv",
@@ -107,6 +120,8 @@ rule filter_country:
 
 
 rule filter_region:
+    """Extracts all sequences for a single region to create a 'focal' dataset."""
+    message: "Extracting sequences for region: {wildcards.region_build}"
     input:
         sequences=full_data_dir + "sequences.fasta",
         index=full_data_dir + "sequence_index.tsv",
@@ -127,6 +142,8 @@ rule filter_region:
 
 
 rule merge_samples_country:
+    """Merges a country-specific 'focal' set with the global 'background' set."""
+    message: "Merging '{wildcards.country_build}' data with background data..."
     input:
         metadata_country=country_data_dir + "metadata.tsv",
         metadata_background=background_data_dir + "metadata.tsv",
@@ -148,6 +165,8 @@ rule merge_samples_country:
 
 
 rule merge_samples_region:
+    """Merges a region-specific 'focal' set with the global 'background' set."""
+    message: "Merging '{wildcards.region_build}' data with background data..."
     input:
         metadata_region=region_data_dir + "metadata.tsv",
         metadata_background=background_data_dir + "metadata.tsv",
@@ -168,7 +187,45 @@ rule merge_samples_region:
             --output-sequences {output.sequences}"
 
 
-rule filter_out_short_reads:
+rule get_E1:
+    input:
+        alignment="data/full_data/aligned.fasta",
+    output:
+        sequences="data/subsampled_data/E1/sequences_raw.fasta", # full genome, only sequences with at least 80% of E1 covered
+        segment="data/subsampled_data/E1/segment.fasta", # same sequences, but only the E1 segment
+    shell:
+        "python scripts/subsample_E1.py --alignment {input.alignment} --output {output.sequences} -s {output.segment}"
+
+
+
+rule subsample_E1_segment:
+    input:
+        metadata="data/full_data/metadata.tsv",
+        sequences="data/subsampled_data/E1/segment.fasta",
+    output:
+        metadata="data/subsampled_data/E1/metadata_segment.tsv",
+        sequences="data/subsampled_data/E1/sequences_segment.fasta",
+    shell:
+        "augur filter \
+            --metadata {input.metadata} \
+            --sequences {input.sequences} \
+            --metadata-id-columns Accession accession \
+            --group-by country year \
+            --subsample-max-sequences 100 \
+            --probabilistic-sampling \
+            --subsample-seed 1 \
+            --output-metadata {output.metadata} \
+            --output-sequences {output.sequences} \
+            --output-log data/subsampled_data/E1/filter_log.tsv"
+
+
+
+rule quality_control:
+    """
+    Performs final QC on a merged dataset, removing short sequences and those
+    with ambiguous dates.
+    """
+    message: "Final QC on '{wildcards.build}"
     input:
         sequences="data/subsampled_data/{build_type}_w_background/{build}/"
         + "sequences_merged.fasta",
@@ -188,6 +245,10 @@ rule filter_out_short_reads:
             --exclude-ambiguous-dates-by year \
             --output-sequences {output.sequences} \
             --output-metadata {output.metadata}"
+
+
+
+# === build trees and auspice files ===
 
 
 def get_sequences(wildcards):
@@ -226,6 +287,7 @@ def get_alignment_for_trees(wildcards):
     if wildcards.build == "E1": # we don't need to do any masking cause it's just the E1 gene anyway
         return "data/subsampled_data/E1/sequences_segment.fasta"
     else:
+        print(f"{wildcards.build}")
         return f"results/{wildcards.build}/aligned_masked.fasta"
 
 
@@ -265,10 +327,13 @@ rule tree:
         alignment=get_alignment_for_trees,
     output:
         tree="results/{build}/tree_raw.nwk",
+    log:
+        "logs/tree_{build}.log",
     shell:
         "augur tree \
         --alignment {input.alignment} \
-        --output {output.tree}"
+        --output {output.tree} \
+        1> {log} 2>&1"
 
 
 rule refine:
@@ -279,6 +344,8 @@ rule refine:
     output:
         tree="results/{build}/tree.nwk",
         node_data="results/{build}/branch_lengths.json",
+    log:
+        "logs/refine_{build}.log",
     shell:
         "augur refine \
         --tree {input.tree} \
@@ -291,7 +358,8 @@ rule refine:
         --coalescent opt \
         --date-confidence \
         --date-inference marginal \
-        --clock-rate 5e-4"
+        --clock-rate 5e-4 \
+        1> {log} 2>&1"
 
 
 rule traits:
@@ -420,38 +488,48 @@ rule align_all:
             --fill-gaps"
 
 
-rule get_E1:
+
+
+
+rule update_example_data_wildcards:
+    """This updates the files under example_data/ based on latest available data from data.nextstrain.org.
+
+    The subset of data is generated by an augur filter call which:
+    - sets the subsampling size to 50
+    - applies the grouping from the config
+    """
+    message:
+        "Update example data"
     input:
-        alignment="data/full_data/aligned.fasta",
-    output:
-        sequences="data/subsampled_data/E1/sequences_raw.fasta", # full genome, only sequences with at least 80% of E1 covered
-        segment="data/subsampled_data/E1/segment.fasta", # same sequences, but only the E1 segment
-    shell:
-        "python scripts/subsample_E1.py --alignment {input.alignment} --output {output.sequences} -s {output.segment}"
-
-
-
-rule subsample_E1_segment:
-    input:
+        sequences="data/full_data/sequences.fasta",
         metadata="data/full_data/metadata.tsv",
-        sequences="data/subsampled_data/E1/segment.fasta",
     output:
-        metadata="data/subsampled_data/E1/metadata_segment.tsv",
-        sequences="data/subsampled_data/E1/sequences_segment.fasta",
+        sequences="example_data/sequences.fasta",
+        metadata="example_data/metadata.tsv",
+    params:
+        strain_id=config["strain_id_field"],
+        group_by=config["filter"]["group_by"],
     shell:
-        "augur filter \
+        """
+        augur filter \
             --metadata {input.metadata} \
+            --metadata-id-columns {params.strain_id} \
             --sequences {input.sequences} \
-            --metadata-id-columns Accession accession \
-            --group-by country year \
-            --subsample-max-sequences 100 \
-            --probabilistic-sampling \
-            --subsample-seed 1 \
+            --group-by {params.group_by} \
+            --subsample-max-sequences 50 \
+            --subsample-seed 0 \
             --output-metadata {output.metadata} \
-            --output-sequences {output.sequences} \
-            --output-log data/subsampled_data/E1/filter_log.tsv"
+            --output-sequences {output.sequences}
+        """
+
+
+rule update_example_data:
+    input:
+        "example_data/sequences.fasta",
+        "example_data/sequences.fasta",
 
 
 rule clean:
     shell:
         "rm -rf results auspice"
+
