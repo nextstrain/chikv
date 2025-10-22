@@ -31,7 +31,12 @@ wildcard_constraints:
 rule all:
     input:
         # data
+        "data/subsampled_data/E1/metadata.tsv",
+
+        "data/full_data/metadata.tsv",
+        "data/full_data/sequences.fasta",
         # intermediate results
+        "results/E1/aligned.fasta",
         # auspice files
         expand(
             "auspice/chikv_{country_build}.json",
@@ -166,7 +171,8 @@ rule merge_samples_country:
 
 rule merge_samples_region:
     """Merges a region-specific 'focal' set with the global 'background' set."""
-    message: "Merging '{wildcards.region_build}' data with background data..."
+    message: 
+        "Merging '{wildcards.region_build}' data with background data..."
     input:
         metadata_region=region_data_dir + "metadata.tsv",
         metadata_background=background_data_dir + "metadata.tsv",
@@ -187,24 +193,41 @@ rule merge_samples_region:
             --output-sequences {output.sequences}"
 
 
-rule get_E1:
+
+
+
+rule filter_e1:
+    "Use nextclade coverage information to find sequences that fully cover E1"
+    message:
+        "filtering for E1"
     input:
-        alignment="data/full_data/aligned.fasta",
+        sequences=full_data_dir + "sequences.fasta",
+        index=full_data_dir + "sequence_index.tsv",
+        metadata=full_data_dir + "metadata.tsv",
     output:
-        sequences="data/subsampled_data/E1/sequences_raw.fasta", # full genome, only sequences with at least 80% of E1 covered
-        segment="data/subsampled_data/E1/segment.fasta", # same sequences, but only the E1 segment
+        sequences= "data/subsampled_data/E1/sequences_full.fasta",
+        metadata= "data/subsampled_data/E1/metadata_full.tsv",
     shell:
-        "python scripts/subsample_E1.py --alignment {input.alignment} --output {output.sequences} -s {output.segment}"
+        "augur filter \
+            --sequences {input.sequences} \
+            --sequence-index {input.index} \
+            --metadata {input.metadata} \
+            --metadata-id-columns Accession accession \
+            --query 'E1>0.8' \
+            --output-sequences {output.sequences} \
+            --output-metadata {output.metadata}"
 
 
-
-rule subsample_E1_segment:
+rule subsample_e1:
+    """Subsamples the E1 gene sequences to create the final analysis set."""
+    message:
+        "Creating balanced E1 set"
     input:
-        metadata="data/full_data/metadata.tsv",
-        sequences="data/subsampled_data/E1/segment.fasta",
+        sequences= "data/subsampled_data/E1/sequences_full.fasta",
+        metadata= "data/subsampled_data/E1/metadata_full.tsv",
     output:
-        metadata="data/subsampled_data/E1/metadata_segment.tsv",
-        sequences="data/subsampled_data/E1/sequences_segment.fasta",
+        sequences= "data/subsampled_data/E1/sequences.fasta",
+        metadata= "data/subsampled_data/E1/metadata.tsv",
     shell:
         "augur filter \
             --metadata {input.metadata} \
@@ -218,6 +241,38 @@ rule subsample_E1_segment:
             --output-sequences {output.sequences} \
             --output-log data/subsampled_data/E1/filter_log.tsv"
 
+rule remove_ref_e1:
+    input:
+        sequences="data/subsampled_data/E1/sequences.fasta",
+        metadata="data/subsampled_data/E1/metadata.tsv",
+    output:
+        sequences="data/subsampled_data/E1/sequences_wo_ref.fasta",
+        metadata="data/subsampled_data/E1/metadata_wo_ref.tsv",
+    shell:
+        "augur filter \
+            --sequences {input.sequences} \
+            --metadata {input.metadata} \
+            --metadata-id-columns Accession accession \
+            --exclude config/ref_name.txt \
+            --output-sequences {output.sequences} \
+            --output-metadata {output.metadata}"
+
+rule align_e1:
+    input:
+        sequences= "data/subsampled_data/E1/sequences_wo_ref.fasta",
+        ref_seq="config/chikv_reference_E1.gb",
+    output:
+        alignment="results/E1/aligned.fasta",
+    log:
+        "logs/align_e1.log",
+    shell:
+        "augur align \
+            --sequences {input.sequences}\
+            --reference-sequence {input.ref_seq}\
+            --output {output.alignment}\
+            --fill-gaps \
+            --nthreads auto \
+            1> {log}"
 
 
 rule quality_control:
@@ -254,7 +309,7 @@ rule quality_control:
 def get_sequences(wildcards):
     build_type = "region" if wildcards.build in regions else "country"
     if wildcards.build == "E1":
-        return "data/subsampled_data/E1/sequences_segment.fasta"
+        return "data/subsampled_data/E1/sequences_wo_ref.fasta"
     if wildcards.build == "general":
         seq_path = background_data_dir + "sequences.fasta"
     elif wildcards.build in regions:
@@ -266,7 +321,7 @@ def get_sequences(wildcards):
 
 def get_metadata(wildcards):
     if wildcards.build == "E1":
-        return "data/subsampled_data/E1/metadata_segment.tsv"
+        return "data/subsampled_data/E1/metadata_wo_ref.tsv"
     if wildcards.build == "general":
         met_path = background_data_dir + "metadata.tsv"
     elif wildcards.build in regions:
@@ -285,7 +340,7 @@ def get_ref(wildcards):
 
 def get_alignment_for_trees(wildcards): 
     if wildcards.build == "E1": # we don't need to do any masking cause it's just the E1 gene anyway
-        return "data/subsampled_data/E1/sequences_segment.fasta"
+        return "results/E1/aligned.fasta"
     else:
         print(f"{wildcards.build}")
         return f"results/{wildcards.build}/aligned_masked.fasta"
@@ -293,18 +348,24 @@ def get_alignment_for_trees(wildcards):
 
 
 rule align:
+    """align build sequences to reference"""
+    message:
+        "Aligning {wildcards.build} sequences to reference"
     input:
         sequences=get_sequences,
         ref_seq="config/chikv_reference.gb",
     output:
         alignment="results/{build}/aligned.fasta",
+    log:
+        "logs/align_{build}.log",
     shell:
         "augur align \
             --sequences {input.sequences}\
             --reference-sequence {input.ref_seq}\
             --output {output.alignment}\
             --fill-gaps \
-            --nthreads auto"
+            --nthreads auto \
+            1> {log}"
 
 
 rule mask:
@@ -531,5 +592,42 @@ rule update_example_data:
 
 rule clean:
     shell:
-        "rm -rf results auspice"
+        "rm -rf results auspice data/subsampled_data"
 
+
+
+rule download:
+    message: "downloading sequences and metadata from data.nextstrain.org"
+    output:
+        metadata =  "data/full_data/metadata.tsv.gz",
+        sequences = "data/full_data/sequences.fasta.xz"
+    params:
+        metadata_url = "http://data.nextstrain.org/files/workflows/chikv/metadata.tsv.gz",
+        sequence_url = "http://data.nextstrain.org/files/workflows/chikv/sequences.fasta.xz"
+    shell:
+        """
+        curl -fsSL --compressed {params.metadata_url:q} --output {output.metadata}
+        curl -fsSL --compressed {params.sequence_url:q} --output {output.sequences}
+        """
+
+rule decompress_sequences:
+    message: "decompressing sequences"
+    input:
+        sequences = "data/full_data/sequences.fasta.xz",
+    output:
+        sequences = "data/full_data/sequences.fasta"
+    shell:
+        """
+        xz --decompress --keep {input.sequences} -c > {output.sequences}
+        """
+
+rule decompress_metadata:
+    message: "decompressing sequences"
+    input:
+        sequences = "data/full_data/metadata.tsv.gz",
+    output:
+        sequences = "data/full_data/metadata.tsv"
+    shell:
+        """
+        gzip --decompress --keep {input.sequences} -c > {output.sequences}
+        """

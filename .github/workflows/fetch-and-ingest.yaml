@@ -28,7 +28,7 @@ on:
   workflow_dispatch:
     inputs:
       trial_name:
-        description: 'Short name for a trial run. WARNING: without this we will overwrite files in s3://nextstrain-data/files/workflows/rsv'
+        description: 'Short name for a trial run. WARNING: without this we will overwrite files in s3://nextstrain-data/files/workflows/chikv'
 
 jobs:
   set_config_overrides:

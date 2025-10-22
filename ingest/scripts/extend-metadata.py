@@ -11,7 +11,7 @@ column_map = {
     "clade": "clade",
     "coverage": "genome_coverage",
 }
-coordinates = {'F':[3052, 4671],'G':[6247,6957]}
+# coordinates = {'F':[3052, 4671],'G':[6247,6957]}
 
 def coverage(target, total):
     if total[0]>target[1] or total[1]<target[0]:
@@ -49,7 +49,7 @@ if __name__=="__main__":
             .rename(columns=column_map)
     
     # Add column with only clade A and B
-    clades["subtypes"] = clades["clade"].apply(lambda x: "A" if x in ["A1","A2","A2a","A2b1","A2b2"] else ("B" if x in ["B1", "B2"] else None))
+    # clades["subtypes"] = clades["clade"].apply(lambda x: "A" if x in ["A1","A2","A2a","A2b1","A2b2"] else ("B" if x in ["B1", "B2"] else None)) not needed for CHIKV
 
     # Concatenate on columns
     result = pd.merge(
@@ -59,7 +59,22 @@ if __name__=="__main__":
         how='left'
     )
 
-    for gene in coordinates:
+    s = result.cdsCoverage[1]
+    d = dict(item.split(":") for item in s.split(","))
+    
+
+    def parse_cds_coverage(s):
+        if pd.isna(s) or s=="":
+            return {}
+        return {k: float(v) for k, v in (item.split(":") for item in s.split(","))}
+
+    result["cdsCoverage_dict"] = result["cdsCoverage"].apply(parse_cds_coverage)
+
+    coverage_df = result["cdsCoverage_dict"].apply(pd.Series, dtype="float64")
+    result = pd.concat([result, coverage_df], axis=1)
+
+
+    """for gene in coordinates:
         def get_coverage(d):
             try:
                 return coverage(coordinates[gene], [int(d.alignmentStart), int(d.alignmentEnd)])
@@ -67,6 +82,6 @@ if __name__=="__main__":
                 print('missing alignment for ',d.name)
                 return np.nan
 
-        result[f"{gene}_coverage"] = result.apply(get_coverage, axis=1)
+        result[f"{gene}_coverage"] = result.apply(get_coverage, axis=1)"""
 
     result.to_csv(args.output, index_label=args.id_field, sep='\t')
