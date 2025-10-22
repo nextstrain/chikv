@@ -46,7 +46,7 @@ rule all:
             "auspice/chikv_{region_build}.json",
             region_build=config.get("region_builds_to_run"),
         ),
-        #"auspice/chikv_E1.json",
+        "auspice/chikv_E1.json",
         "auspice/chikv_general.json", # general build from background data
 
 
@@ -342,7 +342,6 @@ def get_alignment_for_trees(wildcards):
     if wildcards.build == "E1": # we don't need to do any masking cause it's just the E1 gene anyway
         return "results/E1/aligned.fasta"
     else:
-        print(f"{wildcards.build}")
         return f"results/{wildcards.build}/aligned_masked.fasta"
 
 
@@ -394,7 +393,7 @@ rule tree:
         "augur tree \
         --alignment {input.alignment} \
         --output {output.tree} \
-        1> {log} 2>&1"
+        1> {log}"
 
 
 rule refine:
@@ -420,7 +419,7 @@ rule refine:
         --date-confidence \
         --date-inference marginal \
         --clock-rate 5e-4 \
-        1> {log} 2>&1"
+        1> {log}"
 
 
 rule traits:
@@ -445,12 +444,15 @@ rule ancestral:
         alignment=get_alignment_for_trees,
     output:
         node_data="results/{build}/nt_muts.json",
+    log:
+        "logs/align_{build}.log",
     shell:
         "augur ancestral \
         --tree {input.tree} \
         --alignment {input.alignment} \
         --output-node-data {output.node_data} \
-        --inference joint"
+        --inference joint \
+        1> {log}"
 
 
 rule translate:
