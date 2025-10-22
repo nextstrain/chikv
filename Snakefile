@@ -41,7 +41,7 @@ rule all:
             "auspice/chikv_{region_build}.json",
             region_build=config.get("region_builds_to_run"),
         ),
-        "auspice/chikv_E1.json",
+        #"auspice/chikv_E1.json",
         "auspice/chikv_general.json", # general build from background data
 
 
