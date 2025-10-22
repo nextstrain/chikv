@@ -31,13 +31,12 @@ wildcard_constraints:
 rule all:
     input:
         # data
-        "data/subsampled_data/E1_snake/metadata.tsv",
-        "data/subsampled_data/E1/sequences_segment.fasta",
+        "data/subsampled_data/E1/metadata.tsv",
 
         "data/full_data/metadata.tsv",
         "data/full_data/sequences.fasta",
         # intermediate results
-        "results/E1_snake/aligned.fasta",
+        "results/E1/aligned.fasta",
         # auspice files
         expand(
             "auspice/chikv_{country_build}.json",
@@ -194,42 +193,6 @@ rule merge_samples_region:
             --output-sequences {output.sequences}"
 
 
-rule get_E1:
-    """Uses subsample_E1 script to extract the E1 segment"""
-    message:
-        "Extracting E1 segment"
-    input:
-        alignment="data/full_data/aligned.fasta",
-    output:
-        sequences="data/subsampled_data/E1/sequences_raw.fasta", # full genome, only sequences with at least 80% of E1 covered
-        segment="data/subsampled_data/E1/segment.fasta", # same sequences, but only the E1 segment
-    shell:
-        "python scripts/subsample_E1.py --alignment {input.alignment} --output {output.sequences} -s {output.segment}"
-
-
-
-rule subsample_E1_segment:
-    """Subsamples the E1 gene sequences to create the final analysis set."""
-    message:
-        "Creating balanced E1 set"
-    input:
-        metadata="data/full_data/metadata.tsv",
-        sequences="data/subsampled_data/E1/segment.fasta",
-    output:
-        metadata="data/subsampled_data/E1/metadata_segment.tsv",
-        sequences="data/subsampled_data/E1/sequences_segment.fasta",
-    shell:
-        "augur filter \
-            --metadata {input.metadata} \
-            --sequences {input.sequences} \
-            --metadata-id-columns Accession accession \
-            --group-by country year \
-            --subsample-max-sequences 100 \
-            --probabilistic-sampling \
-            --subsample-seed 1 \
-            --output-metadata {output.metadata} \
-            --output-sequences {output.sequences} \
-            --output-log data/subsampled_data/E1/filter_log.tsv"
 
 
 
@@ -242,8 +205,8 @@ rule filter_e1:
         index=full_data_dir + "sequence_index.tsv",
         metadata=full_data_dir + "metadata.tsv",
     output:
-        sequences= "data/subsampled_data/E1_snake/sequences_full.fasta",
-        metadata= "data/subsampled_data/E1_snake/metadata_full.tsv",
+        sequences= "data/subsampled_data/E1/sequences_full.fasta",
+        metadata= "data/subsampled_data/E1/metadata_full.tsv",
     shell:
         "augur filter \
             --sequences {input.sequences} \
@@ -260,11 +223,11 @@ rule subsample_e1:
     message:
         "Creating balanced E1 set"
     input:
-        sequences= "data/subsampled_data/E1_snake/sequences_full.fasta",
-        metadata= "data/subsampled_data/E1_snake/metadata_full.tsv",
+        sequences= "data/subsampled_data/E1/sequences_full.fasta",
+        metadata= "data/subsampled_data/E1/metadata_full.tsv",
     output:
-        sequences= "data/subsampled_data/E1_snake/sequences.fasta",
-        metadata= "data/subsampled_data/E1_snake/metadata.tsv",
+        sequences= "data/subsampled_data/E1/sequences.fasta",
+        metadata= "data/subsampled_data/E1/metadata.tsv",
     shell:
         "augur filter \
             --metadata {input.metadata} \
@@ -280,11 +243,11 @@ rule subsample_e1:
 
 rule remove_ref_e1:
     input:
-        sequences="data/subsampled_data/E1_snake/sequences.fasta",
-        metadata="data/subsampled_data/E1_snake/metadata.tsv",
+        sequences="data/subsampled_data/E1/sequences.fasta",
+        metadata="data/subsampled_data/E1/metadata.tsv",
     output:
-        sequences="data/subsampled_data/E1_snake/sequences_wo_ref.fasta",
-        metadata="data/subsampled_data/E1_snake/metadata_wo_ref.tsv",
+        sequences="data/subsampled_data/E1/sequences_wo_ref.fasta",
+        metadata="data/subsampled_data/E1/metadata_wo_ref.tsv",
     shell:
         "augur filter \
             --sequences {input.sequences} \
@@ -296,10 +259,10 @@ rule remove_ref_e1:
 
 rule align_e1:
     input:
-        sequences= "data/subsampled_data/E1_snake/sequences_wo_ref.fasta",
+        sequences= "data/subsampled_data/E1/sequences_wo_ref.fasta",
         ref_seq="config/chikv_reference_E1.gb",
     output:
-        alignment="results/E1_snake/aligned.fasta",
+        alignment="results/E1/aligned.fasta",
     log:
         "logs/align_e1.log",
     shell:
@@ -346,8 +309,7 @@ rule quality_control:
 def get_sequences(wildcards):
     build_type = "region" if wildcards.build in regions else "country"
     if wildcards.build == "E1":
-        return "data/subsampled_data/E1_snake/sequences_wo_ref.fasta"
-        return "data/subsampled_data/E1/sequences_segment.fasta"
+        return "data/subsampled_data/E1/sequences_wo_ref.fasta"
     if wildcards.build == "general":
         seq_path = background_data_dir + "sequences.fasta"
     elif wildcards.build in regions:
@@ -359,8 +321,7 @@ def get_sequences(wildcards):
 
 def get_metadata(wildcards):
     if wildcards.build == "E1":
-        return "data/subsampled_data/E1_snake/metadata_wo_ref.tsv"
-        return "data/subsampled_data/E1/metadata_segment.tsv"
+        return "data/subsampled_data/E1/metadata_wo_ref.tsv"
     if wildcards.build == "general":
         met_path = background_data_dir + "metadata.tsv"
     elif wildcards.build in regions:
@@ -379,8 +340,7 @@ def get_ref(wildcards):
 
 def get_alignment_for_trees(wildcards): 
     if wildcards.build == "E1": # we don't need to do any masking cause it's just the E1 gene anyway
-        return "results/E1_snake/aligned.fasta"
-        return "data/subsampled_data/E1/sequences_segment.fasta"
+        return "results/E1/aligned.fasta"
     else:
         print(f"{wildcards.build}")
         return f"results/{wildcards.build}/aligned_masked.fasta"
@@ -390,7 +350,7 @@ def get_alignment_for_trees(wildcards):
 rule align:
     """align build sequences to reference"""
     message:
-        "Aligning {build} sequences to reference"
+        "Aligning {wildcards.build} sequences to reference"
     input:
         sequences=get_sequences,
         ref_seq="config/chikv_reference.gb",
