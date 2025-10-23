@@ -38,12 +38,15 @@ country	Cambodia
 country	Vietnam
 country	Hong Kong
 country	Indonesia
+country	Borneo
 country	Brunei
 country	Taiwan
 country	Philippines
 country	Timor-Leste
+country	East Timor
 country	South Korea
 country	Japan
+
 
 # Oceania
 country	French Polynesia
@@ -60,6 +63,8 @@ country	Kiribati
 country	Fiji
 country	Nauru
 country	Cook Islands
+country	Tuvalu
+country	Samoa
 
 # Africa
 country	Cabo Verde
@@ -204,6 +209,7 @@ country	Saint Kitts and Nevis
 country	Saint Barthélemy
 country	Sint Maarten
 country	Saint Martin
+country	Virgin Islands
 country	Jamaica
 country	Dominican Republic
 country	Haiti
