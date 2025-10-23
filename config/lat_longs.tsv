@@ -42,6 +42,7 @@ country	Bermuda	32.3018217	-64.7603583
 country	Bhutan	27.549511	90.5119273
 country	Bolivia	-17.0568696	-64.9912286
 country	Bonaire	12.167	-68.29096143734236
+country	Borneo	0	114
 country	Bosnia and Herzegovina	43.9159	17.6791
 country	Botswana	-23.1681782	24.5928742
 country	Brazil	-10.3333332	-53.1999999
@@ -61,6 +62,7 @@ country	Chad	15.6134137	19.0156172
 country	Chile	-31.7613364	-71.3187696
 country	China	33.394333	104.689839
 country	Colombia	2.893108	-73.7845142
+country	Cook Islands	-21.233333	-159.766667
 country	Costa Rica	10.0379	-83.818759
 country	Côte d'Ivoire	7.9897371	-5.5679458
 country	Croatia	45.1	15.2
@@ -73,6 +75,7 @@ country	Denmark	56.2639	9.5018
 country	Djibouti	11.85677545	42.757784519943655
 country	Dominica	15.4185147	-61.3363561
 country	Dominican Republic	19.0974031	-70.3028026
+country	East Timor	-8.55	125.56
 country	Ecuador	-1.0541	-78.1489
 country	Egypt	26.8206	30.8025
 country	El Salvador	13.8000382	-88.9140683
@@ -153,6 +156,7 @@ country	Morocco	32.549785	-5.480765
 country	Mozambique	-19.302233	34.9144977
 country	Myanmar	20.600856	96.287616
 country	Namibia	-23.2335499	17.3231107
+country	Nauru	-0.528056	166.936944
 country	Nepal	28.0	84.0
 country	Netherlands	52.1326	5.2913
 country	New Caledonia	-21.3019905	165.4880773
@@ -186,6 +190,7 @@ country	Saint Kitts and Nevis	17.250512	-62.6725973
 country	Saint Lucia	13.8250489	-60.975036
 country	Saint Martin	18.0668544	-63.0848869
 country	Saint Vincent and the Grenadines	12.90447	-61.2765569
+country	Samoa	-13.745	-172.2175
 country	Sao Tome and Principe	0.8875498	6.9648718
 country	Saudi Arabia	25.0	45.0
 country	Senegal	14.5	-14.25
@@ -221,6 +226,7 @@ country	Trinidad and Tobago	10.8677845	-60.9821067
 country	Tunisia	33.654143	9.065134
 country	Turkey	39.046746	36.767068
 country	Turks and Caicos Islands	21.7214683	-71.6201783
+country	Tuvalu	-8.520833	179.198611
 country	Uganda	1.861287	32.55149
 country	Ukraine	49.4871968	31.2718321
 country	Union of the Comoros	-12.2045176	44.2832964
@@ -233,6 +239,7 @@ country	Uzbekistan	41.32373	63.9528098
 country	Vanuatu	-16.5255069	168.1069154
 country	Venezuela	7.838891	-65.916409
 country	Vietnam	16.16667	107.83333
+country	Virgin Islands	18.2	-64.8
 country	Wallis and Futuna	-13.289402	-176.204224
 country	Yemen	16.3471243	47.8915271
 country	Zambia	-14.5186239	27.5599164
