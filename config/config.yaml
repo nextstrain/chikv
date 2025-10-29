@@ -4,7 +4,7 @@ strain_id_field: "accession"
 filter:
   group_by: "year country"
 
-country_builds_to_run: ["Senegal"]
+country_builds_to_run: ["Senegal", "Réunion", "Africa", "Asia"]
 
 region_builds_to_run: []
 
