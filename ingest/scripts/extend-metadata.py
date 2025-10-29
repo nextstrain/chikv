@@ -31,6 +31,7 @@ def coverage(target, total):
         return (total[1]-target[0])/(target[1]-target[0])
 
 
+
 if __name__=="__main__":
     import argparse, sys
     parser = argparse.ArgumentParser()
@@ -74,14 +75,26 @@ if __name__=="__main__":
     result = pd.concat([result, coverage_df], axis=1)
 
 
-    """for gene in coordinates:
-        def get_coverage(d):
-            try:
-                return coverage(coordinates[gene], [int(d.alignmentStart), int(d.alignmentEnd)])
-            except:
-                print('missing alignment for ',d.name)
-                return np.nan
+    # correctly label french overseas territories
+    # --- Fix French overseas territories ---
+    overseas_map = {
+        "reunion": ("Africa", "Réunion"),
+        "la reunion": ("Africa", "Réunion"),
+        "réunion": ("Africa", "Réunion"),
+        "mayotte": ("Africa", "Mayotte"),
+        "martinique": ("North America", "Martinique"),
+        "new caledonia": ("Oceania", "New Caledonia"),
+        "french guiana": ("South America", "French Guiana"),
+    }
 
-        result[f"{gene}_coverage"] = result.apply(get_coverage, axis=1)"""
+    mask = result["country"].eq("France")
+    div_norm = result["division"].str.lower().str.strip()
+
+    for div, (region, country) in overseas_map.items():
+        match = mask & div_norm.eq(div)
+        result.loc[match, "region"] = region
+        result.loc[match, "country"] = country
+
+
 
     result.to_csv(args.output, index_label=args.id_field, sep='\t')
