@@ -57,10 +57,12 @@ country	Oceania
 country	Micronesia
 country	Solomon Islands
 country	Vanuatu
+country	New Caledonia
 country	Marshall Islands
 country	New Zealand
 country	Kiribati
 country	Fiji
+country	Tonga
 country	Nauru
 country	Cook Islands
 country	Tuvalu
@@ -121,6 +123,8 @@ country	Madagascar
 country	Somalia
 country	Seychelles
 country	Mauritius
+country	Mayotte
+country	Réunion
 
 # Europe
 country	Iceland
@@ -183,6 +187,7 @@ country	Peru
 country	Ecuador
 country	Colombia
 country	Suriname
+country	French Guiana
 country	Guyana
 country	Venezuela
 country	Trinidad and Tobago
