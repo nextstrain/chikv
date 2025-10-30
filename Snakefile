@@ -13,6 +13,7 @@ country_data_dir = "data/subsampled_data/country/{country_build}/" # data filter
 region_data_dir = "data/subsampled_data/region/{region_build}/" # data filtered for just the region
 country_build_data_dir = "data/subsampled_data/country_w_background/{build}/" # country + background data
 region_build_data_dir = "data/subsampled_data/region_w_background/{build}/" # region + background data
+global_build_data_dir = "data/subsampled_data/global/"
 
 
 ##
@@ -31,12 +32,7 @@ wildcard_constraints:
 rule all:
     input:
         # data
-        "data/subsampled_data/E1/metadata.tsv",
-
-        "data/full_data/metadata.tsv",
-        "data/full_data/sequences.fasta",
         # intermediate results
-        "results/E1/aligned.fasta",
         # auspice files
         expand(
             "auspice/chikv_{country_build}.json",
@@ -47,10 +43,79 @@ rule all:
             region_build=config.get("region_builds_to_run"),
         ),
         "auspice/chikv_E1.json",
-        "auspice/chikv_general.json", # general build from background data
+        "auspice/chikv_global.json",
 
 
-# === filtering and subsampling ===
+# === download and decompress ===
+
+
+
+rule download:
+    message: "downloading sequences and metadata from data.nextstrain.org"
+    output:
+        metadata =  "data/full_data/metadata.tsv.gz",
+        sequences = "data/full_data/sequences.fasta.xz"
+    params:
+        metadata_url = "http://data.nextstrain.org/files/workflows/chikv/metadata.tsv.gz",
+        sequence_url = "http://data.nextstrain.org/files/workflows/chikv/sequences.fasta.xz"
+    shell:
+        """
+        curl -fsSL --compressed {params.metadata_url:q} --output {output.metadata}
+        curl -fsSL --compressed {params.sequence_url:q} --output {output.sequences}
+        """
+
+rule decompress_sequences:
+    message: "decompressing sequences"
+    input:
+        sequences = "data/full_data/sequences.fasta.xz",
+    output:
+        sequences = "data/full_data/sequences_raw.fasta"
+    shell:
+        """
+        xz --decompress --keep {input.sequences} -c > {output.sequences}
+        """
+
+rule decompress_metadata:
+    message: "decompressing metadata"
+    input:
+        metadata = "data/full_data/metadata.tsv.gz",
+    output:
+        metadata = "data/full_data/metadata_raw.tsv"
+    shell:
+        """
+        gzip --decompress --keep {input.metadata} -c > {output.metadata}
+        """
+
+
+# === filter and subsample ===
+
+
+
+rule quality_control:
+    """
+    Performs preliminary QC on full dataset, removing short sequences and those
+    with ambiguous dates.
+    """
+    message: "Preliminary QC on full data"
+    input:
+        sequences="data/full_data/sequences_raw.fasta",
+        metadata="data/full_data/metadata_raw.tsv",
+    output:
+        sequences="data/full_data/sequences.fasta",
+        metadata="data/full_data/metadata.tsv",
+    shell:
+        "augur filter \
+            --sequences {input.sequences} \
+            --metadata {input.metadata} \
+            --metadata-id-columns Accession accession \
+            --min-length 1000 \
+            --exclude-where 'qc.overallStatus=bad' \
+            --exclude-where 'qc.overallStatus=' \
+            --exclude-ambiguous-dates-by year \
+            --output-sequences {output.sequences} \
+            --output-metadata {output.metadata}"
+
+
 
 rule index:
     message:
@@ -67,7 +132,7 @@ rule index:
             --output {output.index}"
 
 
-rule filter:
+rule filter_background:
     """
     Creates the global 'background' dataset by performing quality control and
     probabilistic subsampling on the full dataset.
@@ -88,12 +153,14 @@ rule filter:
             --metadata {input.metadata} \
             --metadata-id-columns Accession accession \
             --exclude-ambiguous-dates-by any \
-            --exclude-where qc.overallStatus=bad \
+            --exclude-where 'qc.overallStatus=bad' \
+            --query '`qc.overallStatus`.notnull()' \
             --exclude {input.exclude} \
+            --min-length 6000 \
             --output-sequences {output.sequences} \
             --output-metadata {output.metadata} \
             --group-by country year \
-            --subsample-max-sequences 100 \
+            --subsample-max-sequences 500 \
             --probabilistic-sampling \
             --subsample-seed 1"
 
@@ -119,9 +186,6 @@ rule filter_country:
             --output-sequences {output.sequences} \
             --output-metadata {output.metadata}"
 
-
-# should i exclude amgigous dates here?
-# should i subsample?
 
 
 rule filter_region:
@@ -156,9 +220,9 @@ rule merge_samples_country:
         sequences_background=background_data_dir + "sequences.fasta",
     output:
         sequences="data/subsampled_data/country_w_background/{country_build}/"
-        + "sequences_merged.fasta",
+        + "sequences.fasta",
         metadata="data/subsampled_data/country_w_background/{country_build}/"
-        + "metadata_merged.tsv",
+        + "metadata.tsv",
     shell:
         "augur merge \
             --metadata country={input.metadata_country} background={input.metadata_background} \
@@ -180,9 +244,9 @@ rule merge_samples_region:
         sequences_background=background_data_dir + "sequences.fasta",
     output:
         sequences="data/subsampled_data/region_w_background/{region_build}/"
-        + "sequences_merged.fasta",
+        + "sequences.fasta",
         metadata="data/subsampled_data/region_w_background/{region_build}/"
-        + "metadata_merged.tsv",
+        + "metadata.tsv",
     shell:
         "augur merge \
             --metadata region={input.metadata_region} background={input.metadata_background} \
@@ -234,7 +298,7 @@ rule subsample_e1:
             --sequences {input.sequences} \
             --metadata-id-columns Accession accession \
             --group-by country year \
-            --subsample-max-sequences 100 \
+            --subsample-max-sequences 2000 \
             --probabilistic-sampling \
             --subsample-seed 1 \
             --output-metadata {output.metadata} \
@@ -275,32 +339,38 @@ rule align_e1:
             1> {log}"
 
 
-rule quality_control:
+
+
+rule filter_global:
     """
-    Performs final QC on a merged dataset, removing short sequences and those
-    with ambiguous dates.
+    Subsamples full-length sequences for a global build
     """
-    message: "Final QC on '{wildcards.build}"
+    message: "Subsampling for a global build"
     input:
-        sequences="data/subsampled_data/{build_type}_w_background/{build}/"
-        + "sequences_merged.fasta",
-        metadata="data/subsampled_data/{build_type}_w_background/{build}/"
-        + "metadata_merged.tsv",
-    output:
-        sequences="data/subsampled_data/{build_type}_w_background/{build}/"
-        + "sequences.fasta",
-        metadata="data/subsampled_data/{build_type}_w_background/{build}/"
-        + "metadata.tsv",
+        sequences=full_data_dir + "sequences.fasta",
+        index=full_data_dir + "sequence_index.tsv",
+        metadata=full_data_dir + "metadata.tsv",
+        exclude="config/outliers.txt", # accessions of any samples we want to exclude
+    output:  # will serve as background
+        sequences= global_build_data_dir + "sequences.fasta",
+        metadata=global_build_data_dir + "metadata.tsv",
     shell:
         "augur filter \
             --sequences {input.sequences} \
+            --sequence-index {input.index} \
             --metadata {input.metadata} \
             --metadata-id-columns Accession accession \
-            --min-length 1000 \
-            --exclude-ambiguous-dates-by year \
+            --exclude-ambiguous-dates-by any \
+            --exclude-where 'qc.overallStatus=bad' \
+            --query '`qc.overallStatus`.notnull()' \
+            --exclude {input.exclude} \
+            --min-length 10000 \
             --output-sequences {output.sequences} \
-            --output-metadata {output.metadata}"
-
+            --output-metadata {output.metadata} \
+            --group-by country year \
+            --subsample-max-sequences 3000 \
+            --probabilistic-sampling \
+            --subsample-seed 1"
 
 
 # === build trees and auspice files ===
@@ -310,8 +380,10 @@ def get_sequences(wildcards):
     build_type = "region" if wildcards.build in regions else "country"
     if wildcards.build == "E1":
         return "data/subsampled_data/E1/sequences_wo_ref.fasta"
-    if wildcards.build == "general":
+    elif wildcards.build == "general":
         seq_path = background_data_dir + "sequences.fasta"
+    elif wildcards.build == "global":
+        seq_path = global_build_data_dir + "sequences.fasta"
     elif wildcards.build in regions:
         seq_path = region_build_data_dir + "sequences.fasta"
     else:
@@ -322,8 +394,10 @@ def get_sequences(wildcards):
 def get_metadata(wildcards):
     if wildcards.build == "E1":
         return "data/subsampled_data/E1/metadata_wo_ref.tsv"
-    if wildcards.build == "general":
+    elif wildcards.build == "general":
         met_path = background_data_dir + "metadata.tsv"
+    elif wildcards.build == "global":
+        met_path = global_build_data_dir + "metadata.tsv"
     elif wildcards.build in regions:
         met_path = region_build_data_dir + "metadata.tsv"
     else:
@@ -344,6 +418,25 @@ def get_alignment_for_trees(wildcards):
     else:
         return f"results/{wildcards.build}/aligned_masked.fasta"
 
+
+rule colors:
+    """generate color mapping file for geographic traits"""
+    message:
+        "Assigning colors for: {wildcards.build}"
+    input:
+        color_schemes="config/color_schemes.tsv",
+        color_orderings="config/color_orderings.tsv",
+        metadata=get_metadata,
+    output:
+        colors="results/{build}/colors.tsv",
+    shell:
+        """
+        python scripts/assign-colors.py \
+            --color-schemes {input.color_schemes} \
+            --ordering {input.color_orderings} \
+            --metadata {input.metadata} \
+            --output {output.colors}
+        """
 
 
 rule align:
@@ -368,6 +461,9 @@ rule align:
 
 
 rule mask:
+    "mask noncoding regions from analysis"
+    message:
+        "Masking first 76 and last 513 nucleotides "
     input:
         alignment="results/{build}/aligned.fasta",
     output:
@@ -383,6 +479,9 @@ rule mask:
 
 
 rule tree:
+    "build a tree usig the IQ-TREE maximum likelihood algorithm"
+    message:
+        "Building initial maximum likelihood tree for {wildcards.build}"
     input:
         alignment=get_alignment_for_trees,
     output:
@@ -392,11 +491,15 @@ rule tree:
     shell:
         "augur tree \
         --alignment {input.alignment} \
+        --nthreads auto \
         --output {output.tree} \
         1> {log}"
 
 
 rule refine:
+    "use TreeTime to get a time-resolved tree"
+    message:
+        "Inferring timetree for {wildcards.build}"
     input:
         tree="results/{build}/tree_raw.nwk",
         alignment=get_alignment_for_trees,
@@ -416,6 +519,7 @@ rule refine:
         --output-node-data {output.node_data} \
         --timetree \
         --coalescent opt \
+        --root 'mid_point' \
         --date-confidence \
         --date-inference marginal \
         --clock-rate 5e-4 \
@@ -423,22 +527,28 @@ rule refine:
 
 
 rule traits:
+    "use TreeTime to infer region and country for internal and original nodes"
+    message:
+        "Reconstructing ancestral traits for {wildcards.build}"
     input:
         tree="results/{build}/tree.nwk",
         metadata=get_metadata,
     output:
-        node_data="results/{build}/traits.json",
+        traits="results/{build}/traits.json",
     shell:
         "augur traits \
         --tree {input.tree} \
         --metadata {input.metadata} \
         --metadata-id-columns accession Accession \
-        --output-node-data {output.node_data} \
+        --output-node-data {output.traits} \
         --columns region country \
         --confidence"
 
 
 rule ancestral:
+    """use TreeTime to infer Maximum Likelihood ancestral sequences for internal nodes"""
+    message:
+        "Inferring ancestral sequences"
     input:
         tree="results/{build}/tree.nwk",
         alignment=get_alignment_for_trees,
@@ -456,6 +566,9 @@ rule ancestral:
 
 
 rule translate:
+    """translate nucleotide mutations into amino acid mutations for gene regions"""
+    message:
+        "Translating gene regions from nucleotides to amino acids"
     input:
         tree="results/{build}/tree.nwk",
         ancestral_seq="results/{build}/nt_muts.json",
@@ -470,30 +583,20 @@ rule translate:
         --output-node-data {output.node_data}"
 
 
-rule colors:
-    input:
-        color_schemes="config/color_schemes.tsv",
-        color_orderings="config/color_orderings.tsv",
-        metadata=get_metadata,
-    output:
-        colors="results/{build}/colors.tsv",
-    shell:
-        """
-        python scripts/assign-colors.py \
-            --color-schemes {input.color_schemes} \
-            --ordering {input.color_orderings} \
-            --metadata {input.metadata} \
-            --output {output.colors}
-        """
+
 
 
 rule export:
+    """Use pipeline outputs to generate Auspice JSON for visualization"""
+    message:
+        "Exporting Auspice JSON for {wildcards.build}"
     input:
         tree="results/{build}/tree.nwk",
         metadata=get_metadata,
         branch_lengths="results/{build}/branch_lengths.json",
         nt_muts="results/{build}/nt_muts.json",
         aa_muts="results/{build}/aa_muts.json",
+        traits="results/{build}/traits.json",
         lat_longs="config/lat_longs.tsv",
         colors="results/{build}/colors.tsv",
     output:
@@ -510,46 +613,12 @@ rule export:
         --node-data {input.branch_lengths} \
                     {input.nt_muts} \
                     {input.aa_muts} \
+                    {input.traits} \
         --geo-resolutions {params.geo_resolutions} \
         --colors {input.colors} \
         --lat-longs {input.lat_longs} \
         --auspice-config {params.auspice_config} \
         --output {output.auspice}"
-
-
-rule remove_ref:
-    input:
-        sequences="data/full_data/sequences.fasta",
-        metadata="data/full_data/metadata.tsv",
-        index="data/full_data/sequence_index.tsv",
-    output:
-        sequences="data/full_data/sequences_wo_ref.fasta",
-        metadata="data/full_data/metadata_wo_ref.tsv",
-    shell:
-        "augur filter \
-            --sequences {input.sequences} \
-            --sequence-index {input.index} \
-            --metadata {input.metadata} \
-            --metadata-id-columns Accession accession \
-            --exclude config/ref_name.txt \
-            --output-sequences {output.sequences} \
-            --output-metadata {output.metadata}"
-
-
-rule align_all:
-    input:
-        sequences="data/full_data/sequences_wo_ref.fasta",
-        ref_seq="config/chikv_reference.gb",
-    output:
-        alignment="data/full_data/aligned.fasta",
-    shell:
-        "augur align \
-            --sequences {input.sequences} \
-            --reference-sequence {input.ref_seq} \
-            --output {output.alignment} \
-            --nthreads auto \
-            --fill-gaps"
-
 
 
 
@@ -594,42 +663,7 @@ rule update_example_data:
 
 rule clean:
     shell:
-        "rm -rf results auspice data/subsampled_data"
+        "rm -rf results auspice data"
 
 
 
-rule download:
-    message: "downloading sequences and metadata from data.nextstrain.org"
-    output:
-        metadata =  "data/full_data/metadata.tsv.gz",
-        sequences = "data/full_data/sequences.fasta.xz"
-    params:
-        metadata_url = "http://data.nextstrain.org/files/workflows/chikv/metadata.tsv.gz",
-        sequence_url = "http://data.nextstrain.org/files/workflows/chikv/sequences.fasta.xz"
-    shell:
-        """
-        curl -fsSL --compressed {params.metadata_url:q} --output {output.metadata}
-        curl -fsSL --compressed {params.sequence_url:q} --output {output.sequences}
-        """
-
-rule decompress_sequences:
-    message: "decompressing sequences"
-    input:
-        sequences = "data/full_data/sequences.fasta.xz",
-    output:
-        sequences = "data/full_data/sequences.fasta"
-    shell:
-        """
-        xz --decompress --keep {input.sequences} -c > {output.sequences}
-        """
-
-rule decompress_metadata:
-    message: "decompressing sequences"
-    input:
-        sequences = "data/full_data/metadata.tsv.gz",
-    output:
-        sequences = "data/full_data/metadata.tsv"
-    shell:
-        """
-        gzip --decompress --keep {input.sequences} -c > {output.sequences}
-        """
