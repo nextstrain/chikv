@@ -34,3 +34,4 @@ Thumbs.db
 # random files
 graveyard/
 *.pdf
+scripts/eda.ipynb
