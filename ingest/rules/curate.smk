@@ -145,16 +145,3 @@ rule extend_metadata:
                                        --output {output.metadata}
         """
 
-
-rule copy_to_data_folder:
-    input:
-        sequences="data/sequences.fasta",
-        metadata="data/extended_metadata.tsv",
-    output:
-        sequences="../data/full_data/sequences.fasta",
-        metadata="../data/full_data/metadata.tsv",
-    shell:
-        """
-        cp {input.sequences} {output.sequences}
-        cp {input.metadata} {output.metadata}
-        """

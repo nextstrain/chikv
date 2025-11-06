@@ -16,8 +16,15 @@ region_build_data_dir = "data/subsampled_data/region_w_background/{build}/" # re
 global_build_data_dir = "data/subsampled_data/global/"
 
 
+
+
 ##
-regions = ["Asia", "Oceania", "Africa", "Europe", "South America", "North America"] # to know whether we are building a country or data build
+regions = ["Asia", "Oceania", "Africa", "Europe", "South_America", "North_America"] # to know whether we are building a country or data build
+region_display_names = {"Asia": "Asia", "Oceania": "Oceania", "Africa": "Africa", "Europe": "Europe", "South_America": "South America", "North_America": "North America"}
+
+def display_region_name(wildcards):
+    return region_display_names[wildcards.region_build]
+
 
 
 ## wildcards
@@ -112,6 +119,7 @@ rule quality_control:
             --exclude-where 'qc.overallStatus=bad' \
             --exclude-where 'qc.overallStatus=' \
             --exclude-ambiguous-dates-by year \
+            --query '`qc.overallStatus`.notnull()' \
             --output-sequences {output.sequences} \
             --output-metadata {output.metadata}"
 
@@ -198,6 +206,8 @@ rule filter_region:
     output:
         sequences=region_data_dir + "sequences.fasta",
         metadata=region_data_dir + "metadata.tsv",
+    params:
+        region_name=display_region_name,
     shell:
         "augur filter \
             --sequences {input.sequences} \
@@ -205,7 +215,7 @@ rule filter_region:
             --metadata {input.metadata} \
             --metadata-id-columns Accession accession \
             --exclude-all \
-            --include-where region={wildcards.region_build}\
+            --include-where region='{params.region_name}'\
             --output-sequences {output.sequences} \
             --output-metadata {output.metadata}"
 
@@ -297,6 +307,8 @@ rule subsample_e1:
             --metadata {input.metadata} \
             --sequences {input.sequences} \
             --metadata-id-columns Accession accession \
+            --exclude-where authors='Xiao,P.' \
+            --exclude-where authors='Feng,G.,Zhang,J.,Zhang,Y.,Li,C.,Zhang,D.,Li,Y.,Zhou,H.,Li,N.,Xiao,P.,Lu,H.' \
             --group-by country year \
             --subsample-max-sequences 2000 \
             --probabilistic-sampling \
@@ -362,7 +374,6 @@ rule filter_global:
             --metadata-id-columns Accession accession \
             --exclude-ambiguous-dates-by any \
             --exclude-where 'qc.overallStatus=bad' \
-            --query '`qc.overallStatus`.notnull()' \
             --exclude {input.exclude} \
             --min-length 10000 \
             --output-sequences {output.sequences} \

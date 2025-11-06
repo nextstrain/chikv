@@ -34,3 +34,8 @@ Thumbs.db
 # random files
 graveyard/
 *.pdf
+scripts/full_alignment.fasta.log
+scripts/full_alignment.fasta.insertions.csv
+scripts/full_alignment.fasta
+scripts/eda.ipynb
+scripts/investigate_outliers.sh
