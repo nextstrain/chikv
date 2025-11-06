@@ -41,7 +41,16 @@ rule all:
         # data
         # intermediate results
         # auspice files
+        expand(
+            "auspice/chikv_{country_build}.json",
+            country_build=config.get("country_builds_to_run"),
+        ),
+        expand(
+            "auspice/chikv_{region_build}.json",
+            region_build=config.get("region_builds_to_run"),
+        ),
         "auspice/chikv_E1.json",
+        "auspice/chikv_global.json",
 
 
 # === download and decompress ===
@@ -298,6 +307,8 @@ rule subsample_e1:
             --metadata {input.metadata} \
             --sequences {input.sequences} \
             --metadata-id-columns Accession accession \
+            --exclude-where authors='Xiao,P.' \
+            --exclude-where authors='Feng,G.,Zhang,J.,Zhang,Y.,Li,C.,Zhang,D.,Li,Y.,Zhou,H.,Li,N.,Xiao,P.,Lu,H.' \
             --group-by country year \
             --subsample-max-sequences 2000 \
             --probabilistic-sampling \
