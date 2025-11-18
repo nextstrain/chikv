@@ -65,14 +65,9 @@ jobs:
     uses: nextstrain/.github/.github/workflows/pathogen-repo-build.yaml@master
     secrets: inherit
     with:
-      runtime: aws-batch
+      runtime: docker
       run: |
         nextstrain build \
-          --aws-batch \
-          --detach \
-          --no-download \
-          --cpus 8 \
-          --memory 32gib \
           --env PAT_GITHUB_DISPATCH="$GH_TOKEN_NEXTSTRAIN_BOT_WORKFLOW_DISPATCH" \
           --env S3_DST \
           --env TRIGGER_REBUILD \
