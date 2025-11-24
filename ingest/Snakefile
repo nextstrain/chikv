@@ -45,8 +45,6 @@ rule all:
     input:
         _get_all_targets,
         "data/ncbi.ndjson",
-        "../data/full_data/sequences.fasta",
-        "../data/full_data/metadata.tsv",
         "data/aligment.fasta",
 
 
