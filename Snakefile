@@ -34,7 +34,7 @@ wildcard_constraints:
     region_build=r"[^/]+",  # region to filter for
     build=r"[^/]+",  # can be a country or a region
     build_type="country|region",
-    
+
 
 rule all:
     input:
@@ -111,7 +111,8 @@ rule quality_control:
         sequences="data/full_data/sequences.fasta",
         metadata="data/full_data/metadata.tsv",
     shell:
-        "augur filter \
+        """
+        augur filter \
             --sequences {input.sequences} \
             --metadata {input.metadata} \
             --metadata-id-columns Accession accession \
@@ -121,7 +122,8 @@ rule quality_control:
             --exclude-ambiguous-dates-by year \
             --query '`qc.overallStatus`.notnull()' \
             --output-sequences {output.sequences} \
-            --output-metadata {output.metadata}"
+            --output-metadata {output.metadata}
+        """
 
 
 
@@ -135,9 +137,11 @@ rule index:
     output:
         index=full_data_dir + "sequence_index.tsv",
     shell:
-        "augur index \
+        """
+        augur index \
             --sequences {input.sequences} \
-            --output {output.index}"
+            --output {output.index}
+        """
 
 
 rule filter_background:
@@ -155,7 +159,8 @@ rule filter_background:
         sequences=background_data_dir + "sequences.fasta",
         metadata=background_data_dir + "metadata.tsv",
     shell:
-        "augur filter \
+        """
+        augur filter \
             --sequences {input.sequences} \
             --sequence-index {input.index} \
             --metadata {input.metadata} \
@@ -170,7 +175,8 @@ rule filter_background:
             --group-by country year \
             --subsample-max-sequences 500 \
             --probabilistic-sampling \
-            --subsample-seed 1"
+            --subsample-seed 1
+        """
 
 
 rule filter_country:
@@ -184,7 +190,8 @@ rule filter_country:
         sequences=country_data_dir + "sequences.fasta",
         metadata=country_data_dir + "metadata.tsv",
     shell:
-        "augur filter \
+        """
+        augur filter \
             --sequences {input.sequences} \
             --sequence-index {input.index} \
             --metadata {input.metadata} \
@@ -192,7 +199,8 @@ rule filter_country:
             --exclude-all \
             --include-where country={wildcards.country_build}\
             --output-sequences {output.sequences} \
-            --output-metadata {output.metadata}"
+            --output-metadata {output.metadata}
+        """
 
 
 
@@ -209,7 +217,8 @@ rule filter_region:
     params:
         region_name=display_region_name,
     shell:
-        "augur filter \
+        """
+        augur filter \
             --sequences {input.sequences} \
             --sequence-index {input.index} \
             --metadata {input.metadata} \
@@ -217,7 +226,8 @@ rule filter_region:
             --exclude-all \
             --include-where region='{params.region_name}'\
             --output-sequences {output.sequences} \
-            --output-metadata {output.metadata}"
+            --output-metadata {output.metadata}
+        """
 
 
 rule merge_samples_country:
@@ -234,18 +244,20 @@ rule merge_samples_country:
         metadata="data/subsampled_data/country_w_background/{country_build}/"
         + "metadata.tsv",
     shell:
-        "augur merge \
+        """
+        augur merge \
             --metadata country={input.metadata_country} background={input.metadata_background} \
             --metadata-id-columns accession Accession\
             --sequences {input.sequences_country} {input.sequences_background} \
             --output-metadata {output.metadata} \
             --source-columns source_{{NAME}} \
-            --output-sequences {output.sequences}"
+            --output-sequences {output.sequences}
+        """
 
 
 rule merge_samples_region:
     """Merges a region-specific 'focal' set with the global 'background' set."""
-    message: 
+    message:
         "Merging '{wildcards.region_build}' data with background data..."
     input:
         metadata_region=region_data_dir + "metadata.tsv",
@@ -258,13 +270,15 @@ rule merge_samples_region:
         metadata="data/subsampled_data/region_w_background/{region_build}/"
         + "metadata.tsv",
     shell:
-        "augur merge \
+        """
+        augur merge \
             --metadata region={input.metadata_region} background={input.metadata_background} \
             --metadata-id-columns accession Accession\
             --sequences {input.sequences_region} {input.sequences_background} \
             --output-metadata {output.metadata} \
             --source-columns source_{{NAME}} \
-            --output-sequences {output.sequences}"
+            --output-sequences {output.sequences}
+        """
 
 
 
@@ -282,15 +296,16 @@ rule filter_e1:
         sequences= "data/subsampled_data/E1/sequences_full.fasta",
         metadata= "data/subsampled_data/E1/metadata_full.tsv",
     shell:
-        "augur filter \
+        """
+        augur filter \
             --sequences {input.sequences} \
             --sequence-index {input.index} \
             --metadata {input.metadata} \
             --metadata-id-columns Accession accession \
             --query 'E1>0.8' \
             --output-sequences {output.sequences} \
-            --output-metadata {output.metadata}"
-
+            --output-metadata {output.metadata}
+        """
 
 rule subsample_e1:
     """Subsamples the E1 gene sequences to create the final analysis set."""
@@ -303,7 +318,8 @@ rule subsample_e1:
         sequences= "data/subsampled_data/E1/sequences.fasta",
         metadata= "data/subsampled_data/E1/metadata.tsv",
     shell:
-        "augur filter \
+        """
+        augur filter \
             --metadata {input.metadata} \
             --sequences {input.sequences} \
             --metadata-id-columns Accession accession \
@@ -316,6 +332,7 @@ rule subsample_e1:
             --output-metadata {output.metadata} \
             --output-sequences {output.sequences} \
             --output-log data/subsampled_data/E1/filter_log.tsv"
+        """
 
 rule remove_ref_e1:
     input:
@@ -325,13 +342,15 @@ rule remove_ref_e1:
         sequences="data/subsampled_data/E1/sequences_wo_ref.fasta",
         metadata="data/subsampled_data/E1/metadata_wo_ref.tsv",
     shell:
-        "augur filter \
+        """
+        augur filter \
             --sequences {input.sequences} \
             --metadata {input.metadata} \
             --metadata-id-columns Accession accession \
             --exclude config/ref_name.txt \
             --output-sequences {output.sequences} \
-            --output-metadata {output.metadata}"
+            --output-metadata {output.metadata}
+            """
 
 rule align_e1:
     input:
@@ -342,13 +361,15 @@ rule align_e1:
     log:
         "logs/align_e1.log",
     shell:
-        "augur align \
+        """
+        augur align \
             --sequences {input.sequences}\
             --reference-sequence {input.ref_seq}\
             --output {output.alignment}\
             --fill-gaps \
             --nthreads auto \
-            1> {log}"
+            1> {log}
+        """
 
 
 
@@ -367,7 +388,8 @@ rule filter_global:
         sequences= global_build_data_dir + "sequences.fasta",
         metadata=global_build_data_dir + "metadata.tsv",
     shell:
-        "augur filter \
+        """
+        augur filter \
             --sequences {input.sequences} \
             --sequence-index {input.index} \
             --metadata {input.metadata} \
@@ -381,7 +403,8 @@ rule filter_global:
             --group-by country year \
             --subsample-max-sequences 3000 \
             --probabilistic-sampling \
-            --subsample-seed 1"
+            --subsample-seed 1
+        """
 
 
 # === build trees and auspice files ===
@@ -423,7 +446,7 @@ def get_ref(wildcards):
         return "config/chikv_reference_adjusted.gb"
 
 
-def get_alignment_for_trees(wildcards): 
+def get_alignment_for_trees(wildcards):
     if wildcards.build == "E1": # we don't need to do any masking cause it's just the E1 gene anyway
         return "results/E1/aligned.fasta"
     else:
@@ -462,13 +485,15 @@ rule align:
     log:
         "logs/align_{build}.log",
     shell:
-        "augur align \
+        """
+        augur align \
             --sequences {input.sequences}\
             --reference-sequence {input.ref_seq}\
             --output {output.alignment}\
             --fill-gaps \
             --nthreads auto \
-            1> {log}"
+            1> {log}
+        """
 
 
 rule mask:
@@ -482,11 +507,13 @@ rule mask:
     wildcard_constraints:
         build="(?!E1$)[^/]+",
     shell:
-        "augur mask \
+        """
+        augur mask \
         --sequences {input.alignment} \
         --mask-from-beginning 76 \
         --mask-from-end 513 \
-        --output {output.alignment_masked}"
+        --output {output.alignment_masked}
+        """
 
 
 rule tree:
@@ -500,11 +527,13 @@ rule tree:
     log:
         "logs/tree_{build}.log",
     shell:
-        "augur tree \
+        """
+        augur tree \
         --alignment {input.alignment} \
         --nthreads auto \
         --output {output.tree} \
-        1> {log}"
+        1> {log}
+        """
 
 
 rule refine:
@@ -521,7 +550,8 @@ rule refine:
     log:
         "logs/refine_{build}.log",
     shell:
-        "augur refine \
+        """
+        augur refine \
         --tree {input.tree} \
         --alignment {input.alignment} \
         --metadata {input.metadata} \
@@ -534,7 +564,8 @@ rule refine:
         --date-confidence \
         --date-inference marginal \
         --clock-rate 5e-4 \
-        1> {log}"
+        1> {log}
+        """
 
 
 rule traits:
@@ -547,13 +578,15 @@ rule traits:
     output:
         traits="results/{build}/traits.json",
     shell:
-        "augur traits \
+        """
+        augur traits \
         --tree {input.tree} \
         --metadata {input.metadata} \
         --metadata-id-columns accession Accession \
         --output-node-data {output.traits} \
         --columns region country \
-        --confidence"
+        --confidence
+        """
 
 
 rule ancestral:
@@ -568,12 +601,14 @@ rule ancestral:
     log:
         "logs/align_{build}.log",
     shell:
-        "augur ancestral \
+        """
+        augur ancestral \
         --tree {input.tree} \
         --alignment {input.alignment} \
         --output-node-data {output.node_data} \
         --inference joint \
-        1> {log}"
+        1> {log}
+        """
 
 
 rule translate:
@@ -587,11 +622,13 @@ rule translate:
     output:
         node_data="results/{build}/aa_muts.json",
     shell:
-        "augur translate \
+        """
+        augur translate \
         --tree {input.tree} \
         --ancestral-sequences {input.ancestral_seq} \
         --reference-sequence {input.ref_seq} \
-        --output-node-data {output.node_data}"
+        --output-node-data {output.node_data}
+        """
 
 
 
@@ -617,7 +654,8 @@ rule export:
         geo_resolutions="country",
         colors="config/colors.tsv",
     shell:
-        "augur export v2 \
+        """
+        augur export v2 \
         --tree {input.tree} \
         --metadata {input.metadata} \
         --metadata-id-columns accession Accession \
@@ -629,7 +667,8 @@ rule export:
         --colors {input.colors} \
         --lat-longs {input.lat_longs} \
         --auspice-config {params.auspice_config} \
-        --output {output.auspice}"
+        --output {output.auspice}
+        """
 
 
 
@@ -674,7 +713,9 @@ rule update_example_data:
 
 rule clean:
     shell:
-        "rm -rf results auspice data"
+        """
+        rm -rf results auspice data
+        """
 
 
 
