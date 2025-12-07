@@ -590,7 +590,7 @@ rule update_example_data_wildcards:
             --output-sequences {output.sequences}
         """
 
-if deploy_url in config:
+if "deploy_url" in config:
     include: "rules/nextstrain_automation.smk"
 
 rule update_example_data:
