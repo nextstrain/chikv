@@ -12,7 +12,7 @@ background_data_dir = "builds/" # random, balanced subsample from the full data
 
 
 ##
-display_names = {"South_America": "South America", "North_America": "North America", "Reunion": "Réunion"}
+display_names = {"South-America": "South America", "North-America": "North America", "Reunion": "Réunion"}
 
 def display_name(build):
     return display_names.get(build, build)
@@ -149,6 +149,9 @@ rule filter_background:
     output:  # will serve as background
         sequences=background_data_dir + "sequences.fasta",
         metadata=background_data_dir + "metadata.tsv",
+    params:
+        background_set = config["filter"]["background_set"],
+        background_group_by = config["filter"]["background_group_by"],
     shell:
         """
         augur filter \
@@ -163,12 +166,27 @@ rule filter_background:
             --min-length 6000 \
             --output-sequences {output.sequences} \
             --output-metadata {output.metadata} \
-            --group-by country year \
-            --subsample-max-sequences 500 \
+            --group-by {params.background_group_by} \
+            --subsample-max-sequences {params.background_set} \
             --probabilistic-sampling \
             --subsample-seed 1
         """
 
+def get_geo_sample(wildcards):
+    if wildcards.build in config.get("region_builds_to_run"):
+        return f"--exclude-where region!='{display_name(wildcards.build)}'"
+    elif wildcards.build in config.get("country_builds_to_run"):
+        return f"--exclude-where country!='{display_name(wildcards.build)}'"
+    else:
+        return ""
+
+def get_geo_groupby(wildcards):
+    if wildcards.build in config.get("region_builds_to_run"):
+        return "country year"
+    elif wildcards.build in config.get("country_builds_to_run"):
+        return "year"
+    else:
+        return "country year"
 
 rule filter_geo:
     """Extracts all sequences for a single country to create a 'focal' dataset."""
@@ -181,7 +199,9 @@ rule filter_geo:
         sequences="builds/{build}/" + "sequences.fasta",
         metadata="builds/{build}/" + "metadata.tsv",
     params:
-        geo_filter = lambda w: f"region='{display_name(w.build)}'" if w.build in config.get("region_builds_to_run") else f"country='{display_name(w.build)}'",
+        geo_filter = get_geo_sample,
+        group_by = get_geo_groupby,
+        focal_set = config["filter"]["focal_set"],
     shell:
         """
         augur filter \
@@ -189,8 +209,9 @@ rule filter_geo:
             --sequence-index {input.index} \
             --metadata {input.metadata} \
             --metadata-id-columns Accession accession \
-            --exclude-all \
-            --include-where {params.geo_filter} \
+            {params.geo_filter} \
+            --subsample-max-sequences {params.focal_set} \
+            --group-by {params.group_by} \
             --output-sequences {output.sequences} \
             --output-metadata {output.metadata}
         """
@@ -266,7 +287,7 @@ rule subsample_e1:
             --subsample-seed 1 \
             --output-metadata {output.metadata} \
             --output-sequences {output.sequences} \
-            --output-log "builds/E1"/filter_log.tsv"
+            --output-log builds/E1/filter_log.tsv
         """
 
 rule remove_ref_e1:
@@ -286,60 +307,6 @@ rule remove_ref_e1:
             --output-sequences {output.sequences} \
             --output-metadata {output.metadata}
             """
-
-rule align_e1:
-    input:
-        sequences= "builds/E1/sequences_wo_ref.fasta",
-        ref_seq="config/chikv_reference_E1.gb",
-    output:
-        alignment="builds/E1/aligned.fasta",
-    log:
-        "logs/align_e1.log",
-    shell:
-        """
-        augur align \
-            --sequences {input.sequences}\
-            --reference-sequence {input.ref_seq}\
-            --output {output.alignment}\
-            --fill-gaps \
-            --nthreads auto \
-            1> {log}
-        """
-
-
-
-
-rule filter_global:
-    """
-    Subsamples full-length sequences for a global build
-    """
-    message: "Subsampling for a global build"
-    input:
-        sequences=full_data_dir + "sequences.fasta",
-        index=full_data_dir + "sequence_index.tsv",
-        metadata=full_data_dir + "metadata.tsv",
-        exclude="config/outliers.txt", # accessions of any samples we want to exclude
-    output:  # will serve as background
-        sequences= "builds/global/" + "sequences.fasta",
-        metadata="builds/global/" + "metadata.tsv",
-    shell:
-        """
-        augur filter \
-            --sequences {input.sequences} \
-            --sequence-index {input.index} \
-            --metadata {input.metadata} \
-            --metadata-id-columns Accession accession \
-            --exclude-ambiguous-dates-by any \
-            --exclude-where 'qc.overallStatus=bad' \
-            --exclude {input.exclude} \
-            --min-length 10000 \
-            --output-sequences {output.sequences} \
-            --output-metadata {output.metadata} \
-            --group-by country year \
-            --subsample-max-sequences 3000 \
-            --probabilistic-sampling \
-            --subsample-seed 1
-        """
 
 
 # === build trees and auspice files ===
@@ -393,7 +360,7 @@ rule align:
         "Aligning {wildcards.build} sequences to reference"
     input:
         sequences=get_sequences,
-        ref_seq="config/chikv_reference.gb",
+        ref_seq=get_ref,
     output:
         alignment="builds/{build}/aligned.fasta",
     log:
@@ -493,7 +460,7 @@ rule traits:
         "Reconstructing ancestral traits for {wildcards.build}"
     input:
         tree="builds/{build}/tree.nwk",
-        metadata="builds/{build}/metadata.tsv",
+        metadata=get_metadata,
     output:
         traits="builds/{build}/traits.json",
     shell:
@@ -559,7 +526,7 @@ rule export:
         "Exporting Auspice JSON for {wildcards.build}"
     input:
         tree="builds/{build}/tree.nwk",
-        metadata="builds/{build}/metadata.tsv",
+        metadata=get_metadata,
         branch_lengths="builds/{build}/branch_lengths.json",
         nt_muts="builds/{build}/nt_muts.json",
         aa_muts="builds/{build}/aa_muts.json",
@@ -609,7 +576,7 @@ rule update_example_data_wildcards:
         metadata="example_data/metadata.tsv",
     params:
         strain_id=config["strain_id_field"],
-        group_by=config["filter"]["group_by"],
+        group_by=config["filter"]["background_group_by"],
     shell:
         """
         augur filter \

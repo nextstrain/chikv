@@ -2,11 +2,13 @@
 strain_id_field: "accession"
 
 filter:
-  group_by: "year country"
+  background_group_by: "year country"
+  background_set: 500
+  focal_set: 1500
 
-country_builds_to_run: ["Senegal", "Reunion"]
+country_builds_to_run: ["Reunion"]
 
-region_builds_to_run: [ "Africa", "Asia", "South_America"]
+region_builds_to_run: [ "Africa", "Asia", "South-America"]
 
 
 
