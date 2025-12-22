@@ -365,6 +365,7 @@ rule align:
         alignment="builds/{build}/aligned.fasta",
     log:
         "logs/align_{build}.log",
+    threads: 1
     shell:
         """
         augur align \
@@ -372,7 +373,7 @@ rule align:
             --reference-sequence {input.ref_seq}\
             --output {output.alignment}\
             --fill-gaps \
-            --nthreads auto \
+            --nthreads {threads} \
             1> {log}
         """
 
@@ -412,11 +413,12 @@ rule tree:
         tree="builds/{build}/tree_raw.nwk",
     log:
         "logs/tree_{build}.log",
+    threads: 1
     shell:
         """
         augur tree \
         --alignment {input.alignment} \
-        --nthreads auto \
+        --nthreads {threads} \
         --output {output.tree} \
         1> {log}
         """
