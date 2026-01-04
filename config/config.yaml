@@ -6,9 +6,9 @@ filter:
   background_set: 500
   focal_set: 1500
 
-country_builds_to_run: ["Reunion"]
+country_builds_to_run: [] #["reunion"]
 
-region_builds_to_run: [ "Africa", "Asia", "South-America"]
+region_builds_to_run: [ "africa", "asia", "south-america"]
 
 # deploy
 deploy_url: "s3://nextstrain-staging"

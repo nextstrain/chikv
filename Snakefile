@@ -7,12 +7,13 @@ configfile: "config/config.yaml"
 
 
 ## important directories
-full_data_dir = "data/full_data/"
+data_dir = "data/"
 background_data_dir = "builds/" # random, balanced subsample from the full data
 
 
 ##
-display_names = {"South-America": "South America", "North-America": "North America", "Reunion": "Réunion"}
+display_names = {"south-america": "South America", "north-america": "North America",
+                 "reunion": "Réunion", "africa": "Africa", "asia": "Asia", "europe": "Europe"}
 
 def display_name(build):
     return display_names.get(build, build)
@@ -51,8 +52,8 @@ rule all:
 rule download:
     message: "downloading sequences and metadata from data.nextstrain.org"
     output:
-        metadata =  "data/full_data/metadata.tsv.gz",
-        sequences = "data/full_data/sequences.fasta.xz"
+        metadata =  "data/metadata.tsv.gz",
+        sequences = "data/sequences.fasta.xz"
     params:
         metadata_url = "http://data.nextstrain.org/files/workflows/chikv/metadata.tsv.gz",
         sequence_url = "http://data.nextstrain.org/files/workflows/chikv/sequences.fasta.xz"
@@ -65,9 +66,9 @@ rule download:
 rule decompress_sequences:
     message: "decompressing sequences"
     input:
-        sequences = "data/full_data/sequences.fasta.xz",
+        sequences = "data/sequences.fasta.xz",
     output:
-        sequences = "data/full_data/sequences_raw.fasta"
+        sequences = "data/sequences_raw.fasta"
     shell:
         """
         xz --decompress --keep {input.sequences} -c > {output.sequences}
@@ -76,9 +77,9 @@ rule decompress_sequences:
 rule decompress_metadata:
     message: "decompressing metadata"
     input:
-        metadata = "data/full_data/metadata.tsv.gz",
+        metadata = "data/metadata.tsv.gz",
     output:
-        metadata = "data/full_data/metadata_raw.tsv"
+        metadata = "data/metadata_raw.tsv"
     shell:
         """
         gzip --decompress --keep {input.metadata} -c > {output.metadata}
@@ -96,11 +97,11 @@ rule quality_control:
     """
     message: "Preliminary QC on full data"
     input:
-        sequences="data/full_data/sequences_raw.fasta",
-        metadata="data/full_data/metadata_raw.tsv",
+        sequences="data/sequences_raw.fasta",
+        metadata="data/metadata_raw.tsv",
     output:
-        sequences="data/full_data/sequences.fasta",
-        metadata="data/full_data/metadata.tsv",
+        sequences="data/sequences.fasta",
+        metadata="data/metadata.tsv",
     shell:
         """
         augur filter \
@@ -124,9 +125,9 @@ rule index:
         Creating index of full dataset
         """
     input:
-        sequences=full_data_dir + "sequences.fasta",
+        sequences=data_dir + "sequences.fasta",
     output:
-        index=full_data_dir + "sequence_index.tsv",
+        index=data_dir + "sequence_index.tsv",
     shell:
         """
         augur index \
@@ -142,9 +143,9 @@ rule filter_background:
     """
     message: "Creating balanced background dataset"
     input:
-        sequences=full_data_dir + "sequences.fasta",
-        index=full_data_dir + "sequence_index.tsv",
-        metadata=full_data_dir + "metadata.tsv",
+        sequences=data_dir + "sequences.fasta",
+        index=data_dir + "sequence_index.tsv",
+        metadata=data_dir + "metadata.tsv",
         exclude="config/outliers.txt", # accessions of any samples we want to exclude
     output:  # will serve as background
         sequences=background_data_dir + "sequences.fasta",
@@ -192,9 +193,9 @@ rule filter_geo:
     """Extracts all sequences for a single country to create a 'focal' dataset."""
     message: "Extracting sequences for: {wildcards.build}"
     input:
-        sequences=full_data_dir + "sequences.fasta",
-        index=full_data_dir + "sequence_index.tsv",
-        metadata=full_data_dir + "metadata.tsv",
+        sequences=data_dir + "sequences.fasta",
+        index=data_dir + "sequence_index.tsv",
+        metadata=data_dir + "metadata.tsv",
     output:
         sequences="builds/{build}/" + "sequences.fasta",
         metadata="builds/{build}/" + "metadata.tsv",
@@ -245,9 +246,9 @@ rule filter_e1:
     message:
         "filtering for E1"
     input:
-        sequences=full_data_dir + "sequences.fasta",
-        index=full_data_dir + "sequence_index.tsv",
-        metadata=full_data_dir + "metadata.tsv",
+        sequences=data_dir + "sequences.fasta",
+        index=data_dir + "sequence_index.tsv",
+        metadata=data_dir + "metadata.tsv",
     output:
         sequences= "builds/E1/sequences_full.fasta",
         metadata= "builds/E1/metadata_full.tsv",
@@ -379,15 +380,12 @@ rule align:
 
 
 rule mask:
-    "mask noncoding regions from analysis"
     message:
         "Masking first 76 and last 513 nucleotides "
     input:
         alignment="builds/{build}/aligned.fasta",
     output:
         alignment_masked="builds/{build}/aligned_masked.fasta",
-    wildcard_constraints:
-        build="(?!E1$)[^/]+",
     shell:
         """
         augur mask \
@@ -480,10 +478,10 @@ rule traits:
 rule ancestral:
     """use TreeTime to infer Maximum Likelihood ancestral sequences for internal nodes"""
     message:
-        "Inferring ancestral sequences"
+        "Inferring ancestral sequences -- using full alignment for reconstruction, not masked"
     input:
         tree="builds/{build}/tree.nwk",
-        alignment=get_alignment_for_trees,
+        alignment="builds/{build}/aligned.fasta",
     output:
         node_data="builds/{build}/nt_muts.json",
     log:
@@ -518,10 +516,6 @@ rule translate:
         --output-node-data {output.node_data}
         """
 
-
-
-
-
 rule export:
     """Use pipeline outputs to generate Auspice JSON for visualization"""
     message:
@@ -535,12 +529,10 @@ rule export:
         traits="builds/{build}/traits.json",
         lat_longs="config/lat_longs.tsv",
         colors="builds/{build}/colors.tsv",
+        description="config/description.md",
+        auspice_config="config/auspice_config.json"
     output:
         auspice="auspice/chikv_{build}.json",
-    params:
-        auspice_config="config/auspice_config.json",
-        geo_resolutions="country",
-        colors="config/colors.tsv",
     shell:
         """
         augur export v2 \
@@ -551,15 +543,12 @@ rule export:
                     {input.nt_muts} \
                     {input.aa_muts} \
                     {input.traits} \
-        --geo-resolutions {params.geo_resolutions} \
         --colors {input.colors} \
         --lat-longs {input.lat_longs} \
-        --auspice-config {params.auspice_config} \
+        --auspice-config {input.auspice_config} \
+        --description {input.description} \
         --output {output.auspice}
         """
-
-
-
 
 rule update_example_data_wildcards:
     """This updates the files under example_data/ based on latest available data from data.nextstrain.org.
@@ -571,8 +560,8 @@ rule update_example_data_wildcards:
     message:
         "Update example data"
     input:
-        sequences="data/full_data/sequences.fasta",
-        metadata="data/full_data/metadata.tsv",
+        sequences="data/data/sequences.fasta",
+        metadata="data/data/metadata.tsv",
     output:
         sequences="example_data/sequences.fasta",
         metadata="example_data/metadata.tsv",
