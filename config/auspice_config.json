@@ -1,5 +1,5 @@
 {
-    "title": "Phylogenetic analysis of Chikungunya virus",
+    "title": "Phylogenetic analysis of Chikungunya virus genomes",
     "maintainers": [
         {"name": "the Nextstrain team", "url": "https://nextstrain.org/team"}
     ],
@@ -47,8 +47,7 @@
     ],
     "display_defaults": {
         "map_triplicate": true,
-        "color_by" : "clade_membership",
-        "transmission_lines": false,
-        "branch_label": "Clades"
+        "color_by" : "clade",
+        "transmission_lines": false
     }
 }

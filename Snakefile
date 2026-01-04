@@ -444,11 +444,10 @@ rule refine:
         --metadata-id-columns accession Accession \
         --output-tree {output.tree} \
         --output-node-data {output.node_data} \
+        --clock-filter-iqd 4 \
         --timetree \
         --coalescent opt \
         --root 'mid_point' \
-        --date-confidence \
-        --date-inference marginal \
         --clock-rate 5e-4 \
         1> {log}
         """
