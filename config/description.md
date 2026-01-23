@@ -7,7 +7,7 @@ Our bioinformatic processing workflow can be found at [github.com/nextstrain/chi
 - sequence alignment by a combination of [Nextclade](https://docs.nextstrain.org/projects/nextclade/en/stable/user/nextclade-cli.html) and [MAFFT](https://mafft.cbrc.jp/alignment/software/).
 - phylogenetic reconstruction using [IQTREE](http://www.iqtree.org/)
 - ancestral state reconstruction and temporal inference using [TreeTime](https://github.com/neherlab/treetime)
-- clade assignment via clade definitions derived from the literature.
+- clade assignment via Nextclade dataset [community/v-gen-lab/chikV/genotypes](https://clades.nextstrain.org/?dataset-name=community/v-gen-lab/chikV/genotypes)
 
 #### Underlying data
 These analyses are based on data we sourced from INSDC, and we provide these data here in the hope that it will facilitate further analysis.
