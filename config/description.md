@@ -7,7 +7,6 @@ Our bioinformatic processing workflow can be found at [github.com/nextstrain/chi
 - sequence alignment by a combination of [Nextclade](https://docs.nextstrain.org/projects/nextclade/en/stable/user/nextclade-cli.html) and [MAFFT](https://mafft.cbrc.jp/alignment/software/).
 - phylogenetic reconstruction using [IQTREE](http://www.iqtree.org/)
 - ancestral state reconstruction and temporal inference using [TreeTime](https://github.com/neherlab/treetime)
-- reconstruction of amino acid mutations in the [F protein epitopes](https://pmc.ncbi.nlm.nih.gov/articles/PMC10421620/#R12)
 - clade assignment via clade definitions derived from the literature.
 
 #### Underlying data
