@@ -30,9 +30,6 @@ wildcard_constraints:
 
 rule all:
     input:
-        # data
-        # intermediate results
-        # auspice files
         expand(
             "auspice/chikv_{build}.json",
             build=config.get("country_builds_to_run"),
@@ -41,7 +38,7 @@ rule all:
             "auspice/chikv_{build}.json",
             build=config.get("region_builds_to_run"),
         ),
-        "auspice/chikv_E1.json",
+        # "auspice/chikv_E1.json",
         "auspice/chikv_global.json",
 
 
@@ -240,6 +237,7 @@ rule merge_samples_geo:
         """
 
 
+# Special rules for E1 gene analysis
 
 rule filter_e1:
     "Use nextclade coverage information to find sequences that fully cover E1"
@@ -309,6 +307,7 @@ rule remove_ref_e1:
             --output-metadata {output.metadata}
             """
 
+# END special rules for E1 gene analysis
 
 # === build trees and auspice files ===
 
@@ -317,7 +316,7 @@ def get_sequences(wildcards):
     if wildcards.build == "E1":
         return "builds/E1/sequences_wo_ref.fasta"
     else:
-        seq_path = f"builds/{wildcards. build}/" + "all_sequences.fasta"
+        seq_path = f"builds/{wildcards.build}/" + "all_sequences.fasta"
     return seq_path
 
 
@@ -370,9 +369,9 @@ rule align:
     shell:
         """
         augur align \
-            --sequences {input.sequences}\
-            --reference-sequence {input.ref_seq}\
-            --output {output.alignment}\
+            --sequences {input.sequences} \
+            --reference-sequence {input.ref_seq} \
+            --output {output.alignment} \
             --fill-gaps \
             --nthreads {threads} \
             1> {log}
