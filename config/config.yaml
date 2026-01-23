@@ -11,4 +11,4 @@ country_builds_to_run: [] #["reunion"]
 region_builds_to_run: [ "africa", "asia", "south-america"]
 
 # deploy
-deploy_url: "s3://nextstrain-staging"
+deploy_url: "s3://nextstrain-data"
