@@ -9,6 +9,7 @@
         "url": "https://www.ncbi.nlm.nih.gov/genbank/"
         }
     ],
+    "build_url": "https://github.com/nextstrain/chikv",
     "panels": [
         "tree",
         "map",
