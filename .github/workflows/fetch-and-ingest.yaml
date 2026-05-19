@@ -78,3 +78,9 @@ jobs:
       env: |
         S3_DST: ${{ needs.set_config_overrides.outputs.s3_dst }}
         TRIGGER_REBUILD: ${{ needs.set_config_overrides.outputs.trigger_rebuild }}
+      artifact-name: ingest-build-output
+      artifact-paths: |
+        ingest/results/
+        ingest/benchmarks/
+        ingest/logs/
+        ingest/.snakemake/log/
